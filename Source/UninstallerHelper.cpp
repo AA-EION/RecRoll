@@ -34,7 +34,8 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
         .withIconType(juce::MessageBoxIconType::QuestionIcon)
         .withTitle(title)
         .withMessage(message)
-        .withButtonLabels("Uninstall", "Cancel")
+        .withButton("Uninstall")
+        .withButton("Cancel")
         .withParentComponent(parentComponent);
 
     juce::AlertWindow::showAsync(options, [](int result)
@@ -50,7 +51,7 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
                 .withIconType(juce::MessageBoxIconType::InfoIcon)
                 .withTitle("Uninstallation Complete")
                 .withMessage("RecRoll and all associated plugins and files have been removed.\nThe app will now exit.")
-                .withButtonLabels("OK");
+                .withButton("OK");
 
             juce::AlertWindow::showAsync(okOptions, [](int)
             {
@@ -63,7 +64,7 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
                 .withIconType(juce::MessageBoxIconType::WarningIcon)
                 .withTitle("Uninstallation Cancelled or Failed")
                 .withMessage("Uninstallation was not completed. If administrator privileges were denied, please try again.")
-                .withButtonLabels("OK");
+                .withButton("OK");
 
             juce::AlertWindow::showAsync(errOptions, nullptr);
         }
@@ -75,7 +76,7 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
                 .withIconType(juce::MessageBoxIconType::WarningIcon)
                 .withTitle("Uninstaller Not Found")
                 .withMessage("Could not automatically launch the Windows uninstaller.\nYou can uninstall RecRoll from Windows Settings -> Installed Apps, or run installer/windows/uninstall.ps1.")
-                .withButtonLabels("OK");
+                .withButton("OK");
 
             juce::AlertWindow::showAsync(errOptions, nullptr);
         }
