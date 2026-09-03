@@ -70,8 +70,14 @@ jobs:
 
       # 4. Compile Unified Inno Setup Installer
       - name: Compile Windows Installer
-        shell: cmd
-        run: iscc installer\windows\RecRoll.iss
+        shell: pwsh
+        run: |
+          $isccPath = (Get-Command "iscc" -ErrorAction SilentlyContinue)?.Source
+          if (-not $isccPath -or -not (Test-Path $isccPath)) {
+            $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          }
+          Write-Host "Using Inno Setup compiler at: $isccPath"
+          & $isccPath installer\windows\RecRoll.iss
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4

@@ -78,35 +78,13 @@ pkgbuild --root "${APP_STAGE}" --identifier "${IDENTIFIER}.app" --version "${VER
 
 # 3. Synthesize Product Distribution PKG
 DIST_XML="${STAGE_DIR}/distribution.xml"
-cat <<EOF > "${DIST_XML}"
-<?xml version="1.0" encoding="utf-8"?>
-<installer-gui-script minSpecVersion="1">
-    <title>RecRoll ${VERSION}</title>
-    <options customize="always" require-scripts="false" hostArchitectures="arm64,x86_64"/>
-    <choices-outline>
-        <line choice="choice_vst3"/>
-        <line choice="choice_clap"/>
-        <line choice="choice_au"/>
-        <line choice="choice_app"/>
-    </choices-outline>
-    <choice id="choice_vst3" title="VST3 Plugin" description="Installs RecRoll VST3 plugin">
-        <pkg-ref id="${IDENTIFIER}.vst3"/>
-    </choice>
-    <choice id="choice_clap" title="CLAP Plugin" description="Installs RecRoll CLAP plugin">
-        <pkg-ref id="${IDENTIFIER}.clap"/>
-    </choice>
-    <choice id="choice_au" title="AudioUnit (AU) Plugin" description="Installs RecRoll AU component">
-        <pkg-ref id="${IDENTIFIER}.au"/>
-    </choice>
-    <choice id="choice_app" title="Standalone Application" description="Installs RecRoll Standalone app">
-        <pkg-ref id="${IDENTIFIER}.app"/>
-    </choice>
-    <pkg-ref id="${IDENTIFIER}.vst3" version="${VERSION}">RecRoll-VST3.pkg</pkg-ref>
-    <pkg-ref id="${IDENTIFIER}.clap" version="${VERSION}">RecRoll-CLAP.pkg</pkg-ref>
-    <pkg-ref id="${IDENTIFIER}.au" version="${VERSION}">RecRoll-AU.pkg</pkg-ref>
-    <pkg-ref id="${IDENTIFIER}.app" version="${VERSION}">RecRoll-App.pkg</pkg-ref>
-</installer-gui-script>
-EOF
+echo "[*] Synthesizing distribution blueprint..."
+productbuild --synthesize \
+  --package "${PKG_BUILD_TMP}/RecRoll-VST3.pkg" \
+  --package "${PKG_BUILD_TMP}/RecRoll-CLAP.pkg" \
+  --package "${PKG_BUILD_TMP}/RecRoll-AU.pkg" \
+  --package "${PKG_BUILD_TMP}/RecRoll-App.pkg" \
+  "${DIST_XML}"
 
 FINAL_PKG="${DIST_DIR}/RecRoll-macOS-Universal-Installer.pkg"
 echo "[*] Generating final product package..."
