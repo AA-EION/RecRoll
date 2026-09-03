@@ -120,6 +120,8 @@ bool UninstallerHelper::executeMacOSUninstall()
     juce::String appleScriptSource =
         "do shell script \"/bin/bash '" + tempScript.getFullPathName() + "'\" with administrator privileges";
 
+    bool success = false;
+
     @autoreleasepool
     {
         NSString* src = [NSString stringWithUTF8String:appleScriptSource.toRawUTF8()];
@@ -127,10 +129,29 @@ bool UninstallerHelper::executeMacOSUninstall()
         NSDictionary* errorInfo = nil;
         NSAppleEventDescriptor* desc = [script executeAndReturnError:&errorInfo];
 
-        tempScript.deleteFile();
-
-        return (desc != nil && errorInfo == nil);
+        if (desc != nil && errorInfo == nil)
+        {
+            success = true;
+        }
     }
+
+    if (!success)
+    {
+        juce::ChildProcess process;
+        juce::StringArray args;
+        args.add("/usr/bin/osascript");
+        args.add("-e");
+        args.add(appleScriptSource);
+
+        if (process.start(args))
+        {
+            process.waitForProcessToFinish(60000);
+            success = (process.getExitCode() == 0);
+        }
+    }
+
+    tempScript.deleteFile();
+    return success;
 }
 #endif
 
