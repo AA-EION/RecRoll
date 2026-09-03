@@ -88,36 +88,33 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
 #if JUCE_MAC
 bool UninstallerHelper::executeMacOSUninstall()
 {
-    juce::File tempScript = juce::File::getSpecialLocation(juce::File::tempDirectory)
-                                .getChildFile("recroll_uninstall.sh");
+    juce::File userHome = juce::File::getSpecialLocation(juce::File::userHomeDirectory);
 
-    juce::String scriptContent =
-        "#!/bin/bash\n"
-        "rm -rf '/Applications/RecRoll.app'\n"
-        "rm -rf '/Library/Audio/Plug-Ins/VST3/RecRoll.vst3'\n"
-        "rm -rf ~/Library/Audio/Plug-Ins/VST3/RecRoll.vst3\n"
-        "rm -rf '/Library/Audio/Plug-Ins/CLAP/RecRoll.clap'\n"
-        "rm -rf ~/Library/Audio/Plug-Ins/CLAP/RecRoll.clap\n"
-        "rm -rf '/Library/Audio/Plug-Ins/Components/RecRoll.component'\n"
-        "rm -rf ~/Library/Audio/Plug-Ins/Components/RecRoll.component\n"
-        "rm -rf '/Library/Application Support/RecRoll'\n"
-        "rm -rf ~/Library/Application\\ Support/RecRoll\n"
-        "rm -rf ~/Library/Preferences/com.recrollaudio.*\n"
-        "rm -rf ~/Library/Caches/com.recrollaudio.*\n"
-        "rm -rf ~/Library/Saved\\ Application\\ State/com.recrollaudio.*\n"
-        "rm -rf /Library/LaunchAgents/com.recrollaudio.*\n"
-        "rm -rf ~/Library/LaunchAgents/com.recrollaudio.*\n"
-        "rm -rf /Library/LaunchDaemons/com.recrollaudio.*\n"
-        "pkgutil --forget com.recrollaudio.recroll 2>/dev/null || true\n"
-        "rm -f /var/db/receipts/com.recrollaudio.* 2>/dev/null || true\n"
-        "killall -9 AudioComponentRegistrar 2>/dev/null || true\n"
-        "exit 0\n";
+    // 1. Delete user-level files directly without requiring admin rights
+    userHome.getChildFile("Library/Audio/Plug-Ins/VST3/RecRoll.vst3").deleteRecursively();
+    userHome.getChildFile("Library/Audio/Plug-Ins/CLAP/RecRoll.clap").deleteRecursively();
+    userHome.getChildFile("Library/Audio/Plug-Ins/Components/RecRoll.component").deleteRecursively();
+    userHome.getChildFile("Library/Application Support/RecRoll").deleteRecursively();
+    userHome.getChildFile("Library/Preferences/com.recrollaudio.recroll.plist").deleteFile();
+    userHome.getChildFile("Library/Saved Application State/com.recrollaudio.recroll.savedState").deleteRecursively();
 
-    tempScript.replaceWithText(scriptContent);
-    tempScript.setExecutePermission(true);
+    // 2. Build privileged shell command for system files, launch agents, and package receipts
+    juce::String systemCommands =
+        "rm -rf '/Applications/RecRoll.app' "
+        "'/Library/Audio/Plug-Ins/VST3/RecRoll.vst3' "
+        "'/Library/Audio/Plug-Ins/CLAP/RecRoll.clap' "
+        "'/Library/Audio/Plug-Ins/Components/RecRoll.component' "
+        "'/Library/Application Support/RecRoll' "
+        "'/Library/LaunchAgents/com.recrollaudio'* "
+        "'/Library/LaunchDaemons/com.recrollaudio'* "
+        "'/var/db/receipts/com.recrollaudio'* 2>/dev/null || true; "
+        "pkgutil --pkgs 2>/dev/null | grep -i recroll | while read -r p; do pkgutil --forget \"$p\" 2>/dev/null || true; done; "
+        "killall -9 AudioComponentRegistrar 2>/dev/null || true; "
+        "exit 0";
 
+    juce::String escapedCommands = systemCommands.replace("\\", "\\\\").replace("\"", "\\\"");
     juce::String appleScriptSource =
-        "do shell script \"/bin/bash '" + tempScript.getFullPathName() + "'\" with administrator privileges";
+        "do shell script \"" + escapedCommands + "\" with administrator privileges";
 
     bool success = false;
 
@@ -128,7 +125,17 @@ bool UninstallerHelper::executeMacOSUninstall()
         NSDictionary* errorInfo = nil;
         NSAppleEventDescriptor* desc = [script executeAndReturnError:&errorInfo];
 
-        if (desc != nil && errorInfo == nil)
+        if (errorInfo != nil)
+        {
+            NSNumber* errNum = [errorInfo objectForKey:NSAppleScriptErrorNumber];
+            // If user clicked Cancel in the authentication prompt
+            if (errNum != nil && [errNum intValue] == -128)
+            {
+                return false;
+            }
+        }
+
+        if (desc != nil || errorInfo == nil)
         {
             success = true;
         }
@@ -149,7 +156,6 @@ bool UninstallerHelper::executeMacOSUninstall()
         }
     }
 
-    tempScript.deleteFile();
     return success;
 }
 #endif

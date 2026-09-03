@@ -253,6 +253,8 @@ void WaveformComponent::paint(juce::Graphics& g)
 
     // Waveform rendering from Peak cache
     const int pixelWidth = static_cast<int>(bounds.getWidth());
+    bool hasAudioData = false;
+
     if (pixelWidth > 0)
     {
         buffer.getVisiblePeaks(peakCache, pixelWidth);
@@ -264,52 +266,52 @@ void WaveformComponent::paint(juce::Graphics& g)
             float px = bounds.getX() + static_cast<float>(x);
             const auto& p = peakCache[static_cast<size_t>(x)];
 
-            float peakMax = std::max({ p.maxL, p.maxR, 0.0f });
-            float peakMin = std::min({ p.minL, p.minR, 0.0f });
+            float maxMag = std::max({ std::abs(p.minL), std::abs(p.maxL), std::abs(p.minR), std::abs(p.maxR) });
 
-            if (peakMax > 0.0001f || peakMin < -0.0001f)
+            if (maxMag > 0.0001f)
             {
-                float yTop = centerY - (peakMax * halfHeight * 0.95f);
-                float yBottom = centerY - (peakMin * halfHeight * 0.95f);
-                if (yBottom - yTop < 2.0f)
-                {
-                    yTop = centerY - 1.0f;
-                    yBottom = centerY + 1.0f;
-                }
-                g.drawVerticalLine(static_cast<int>(px), yTop, yBottom);
+                hasAudioData = true;
+                float peakPositive = std::max({ 0.0f, p.maxL, p.maxR });
+                float peakNegative = std::min({ 0.0f, p.minL, p.minR });
+
+                float yTop = centerY - (peakPositive * halfHeight * 0.95f);
+                float yBottom = centerY - (peakNegative * halfHeight * 0.95f);
+                float height = std::max(2.0f, yBottom - yTop);
+
+                g.fillRect(juce::Rectangle<float>(px, yTop, 1.0f, height));
             }
         }
 
-        // 2. Draw solid bright cyan waveform bars
+        // 2. Draw solid bright electric cyan waveform bars
+        g.setColour(juce::Colour(0xff00e5ff));
         for (int x = 0; x < pixelWidth && x < static_cast<int>(peakCache.size()); ++x)
         {
             float px = bounds.getX() + static_cast<float>(x);
             const auto& p = peakCache[static_cast<size_t>(x)];
 
-            // Combined stereo peak envelope
-            float magL = std::max(std::abs(p.minL), std::abs(p.maxL));
-            float magR = std::max(std::abs(p.minR), std::abs(p.maxR));
-            float maxMag = std::max(magL, magR);
+            float maxMag = std::max({ std::abs(p.minL), std::abs(p.maxL), std::abs(p.minR), std::abs(p.maxR) });
 
-            if (maxMag > 0.0002f)
+            if (maxMag > 0.0001f)
             {
                 float peakPositive = std::max({ 0.0f, p.maxL, p.maxR });
                 float peakNegative = std::min({ 0.0f, p.minL, p.minR });
 
                 float yTop = centerY - (peakPositive * halfHeight * 0.95f);
                 float yBottom = centerY - (peakNegative * halfHeight * 0.95f);
+                float height = std::max(2.0f, yBottom - yTop);
 
-                if (yBottom - yTop < 2.0f)
-                {
-                    yTop = centerY - 1.0f;
-                    yBottom = centerY + 1.0f;
-                }
-
-                // Vibrant electric cyan waveform
-                g.setColour(juce::Colour(0xff00e5ff));
-                g.drawVerticalLine(static_cast<int>(px), yTop, yBottom);
+                g.fillRect(juce::Rectangle<float>(px, yTop, 1.0f, height));
             }
         }
+    }
+
+    // If no audio has been captured yet, show a subtle guiding message in the center
+    if (!hasAudioData && buffer.getTotalSamplesWritten() == 0)
+    {
+        g.setColour(juce::Colour(0x66ffffff));
+        g.setFont(juce::FontOptions(13.0f));
+        g.drawText("Waiting for incoming audio... (Play audio in DAW track or feed sound into input)",
+                   bounds, juce::Justification::centred, false);
     }
 
     // Zero-crossing center line

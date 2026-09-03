@@ -43,7 +43,6 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
     // Make window nicely resizable
     setResizable(true, true);
     setResizeLimits(700, 380, 1920, 1200);
-    setSize(860, 480);
 
     // Title Label
     titleLabel.setText("RECROLL", juce::dontSendNotification);
@@ -149,7 +148,7 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
 
     // Connect APVTS attachments
     freezeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        processorRef.getAPVTS(), "recordingActive", freezeBtn);
+        processorRef.getAPVTS(), "freezeBuffer", freezeBtn);
 
     muteThruAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         processorRef.getAPVTS(), "passthroughMuted", muteThruBtn);
@@ -158,6 +157,9 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
         processorRef.getAPVTS(), "normalizeExport", normalizeBtn);
 
     updateDurationButtonStyles(processorRef.getRollingBuffer().getVisibleDurationSeconds());
+
+    // Set initial size after all children are added and configured so resized() lays out everything
+    setSize(860, 480);
 }
 
 RecRollAudioProcessorEditor::~RecRollAudioProcessorEditor()

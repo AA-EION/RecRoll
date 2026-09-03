@@ -59,6 +59,8 @@ juce_add_plugin(RecRoll
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT "RecRoll requires audio input access to capture and record rolling audio."
 )
 
 # Configure CLAP format target

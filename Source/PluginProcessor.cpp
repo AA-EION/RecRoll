@@ -16,9 +16,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout RecRollAudioProcessor::creat
     ));
 
     params.push_back(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "recordingActive", 1 },
-        "Recording Active",
-        true
+        juce::ParameterID { "freezeBuffer", 1 },
+        "Freeze Buffer",
+        false
     ));
 
     params.push_back(std::make_unique<juce::AudioParameterBool>(
@@ -43,9 +43,12 @@ RecRollAudioProcessor::RecRollAudioProcessor()
       apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
     bufferDurationParam   = apvts.getRawParameterValue("bufferDuration");
-    recordingActiveParam  = apvts.getRawParameterValue("recordingActive");
+    freezeBufferParam     = apvts.getRawParameterValue("freezeBuffer");
     passthroughMutedParam = apvts.getRawParameterValue("passthroughMuted");
     normalizeParam        = apvts.getRawParameterValue("normalizeExport");
+
+    // Pre-allocate rolling buffer for 10 minutes so buffer is never uninitialized
+    rollingBuffer.prepare(44100.0, 2, RollingBuffer::DURATION_600S);
 }
 
 RecRollAudioProcessor::~RecRollAudioProcessor()
@@ -123,8 +126,8 @@ void RecRollAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         buffer.clear(i, 0, buffer.getNumSamples());
 
     // Update settings from parameters
-    if (recordingActiveParam != nullptr)
-        rollingBuffer.setRecording(recordingActiveParam->load() > 0.5f);
+    if (freezeBufferParam != nullptr)
+        rollingBuffer.setRecording(freezeBufferParam->load() < 0.5f); // false = not frozen = recording active
 
     if (passthroughMutedParam != nullptr)
         rollingBuffer.setPassthroughMuted(passthroughMutedParam->load() > 0.5f);

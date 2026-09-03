@@ -59,7 +59,7 @@ private:
     juce::AudioProcessorValueTreeState apvts;
 
     std::atomic<float>* bufferDurationParam { nullptr };
-    std::atomic<float>* recordingActiveParam { nullptr };
+    std::atomic<float>* freezeBufferParam { nullptr };
     std::atomic<float>* passthroughMutedParam { nullptr };
     std::atomic<float>* normalizeParam { nullptr };
 
