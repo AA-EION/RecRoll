@@ -85,46 +85,52 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
 }
 
 #if JUCE_MAC
+#import <Foundation/Foundation.h>
+
 bool UninstallerHelper::executeMacOSUninstall()
 {
-    // Build multi-line bash cleanup script executed via osascript with administrator privileges
-    juce::String script =
-        "do shell script \""
-        "rm -rf '/Applications/RecRoll.app' ; "
-        "rm -rf '/Library/Audio/Plug-Ins/VST3/RecRoll.vst3' ; "
-        "rm -rf ~/Library/Audio/Plug-Ins/VST3/RecRoll.vst3 ; "
-        "rm -rf '/Library/Audio/Plug-Ins/CLAP/RecRoll.clap' ; "
-        "rm -rf ~/Library/Audio/Plug-Ins/CLAP/RecRoll.clap ; "
-        "rm -rf '/Library/Audio/Plug-Ins/Components/RecRoll.component' ; "
-        "rm -rf ~/Library/Audio/Plug-Ins/Components/RecRoll.component ; "
-        "rm -rf '/Library/Application Support/RecRoll' ; "
-        "rm -rf ~/Library/Application\\ Support/RecRoll ; "
-        "rm -rf ~/Library/Preferences/com.recrollaudio.* ; "
-        "rm -rf ~/Library/Caches/com.recrollaudio.* ; "
-        "rm -rf ~/Library/Saved\\ Application\\ State/com.recrollaudio.* ; "
-        "rm -rf /Library/LaunchAgents/com.recrollaudio.* ; "
-        "rm -rf ~/Library/LaunchAgents/com.recrollaudio.* ; "
-        "rm -rf /Library/LaunchDaemons/com.recrollaudio.* ; "
-        "pkgutil --forget com.recrollaudio.recroll 2>/dev/null || true ; "
-        "rm -f /var/db/receipts/com.recrollaudio.* 2>/dev/null || true ; "
-        "killall -9 AudioComponentRegistrar 2>/dev/null || true ; "
-        "echo done"
-        "\" with administrator privileges";
+    juce::File tempScript = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                                .getChildFile("recroll_uninstall.sh");
 
-    // Escape quotes for command line invocation
-    juce::ChildProcess process;
-    juce::StringArray args;
-    args.add("osascript");
-    args.add("-e");
-    args.add(script);
+    juce::String scriptContent =
+        "#!/bin/bash\n"
+        "rm -rf '/Applications/RecRoll.app'\n"
+        "rm -rf '/Library/Audio/Plug-Ins/VST3/RecRoll.vst3'\n"
+        "rm -rf ~/Library/Audio/Plug-Ins/VST3/RecRoll.vst3\n"
+        "rm -rf '/Library/Audio/Plug-Ins/CLAP/RecRoll.clap'\n"
+        "rm -rf ~/Library/Audio/Plug-Ins/CLAP/RecRoll.clap\n"
+        "rm -rf '/Library/Audio/Plug-Ins/Components/RecRoll.component'\n"
+        "rm -rf ~/Library/Audio/Plug-Ins/Components/RecRoll.component\n"
+        "rm -rf '/Library/Application Support/RecRoll'\n"
+        "rm -rf ~/Library/Application\\ Support/RecRoll\n"
+        "rm -rf ~/Library/Preferences/com.recrollaudio.*\n"
+        "rm -rf ~/Library/Caches/com.recrollaudio.*\n"
+        "rm -rf ~/Library/Saved\\ Application\\ State/com.recrollaudio.*\n"
+        "rm -rf /Library/LaunchAgents/com.recrollaudio.*\n"
+        "rm -rf ~/Library/LaunchAgents/com.recrollaudio.*\n"
+        "rm -rf /Library/LaunchDaemons/com.recrollaudio.*\n"
+        "pkgutil --forget com.recrollaudio.recroll 2>/dev/null || true\n"
+        "rm -f /var/db/receipts/com.recrollaudio.* 2>/dev/null || true\n"
+        "killall -9 AudioComponentRegistrar 2>/dev/null || true\n"
+        "exit 0\n";
 
-    if (process.start(args))
+    tempScript.replaceWithText(scriptContent);
+    tempScript.setExecutePermission(true);
+
+    juce::String appleScriptSource =
+        "do shell script \"/bin/bash '" + tempScript.getFullPathName() + "'\" with administrator privileges";
+
+    @autoreleasepool
     {
-        process.waitForProcessToFinish(60000);
-        return process.getExitCode() == 0;
-    }
+        NSString* src = [NSString stringWithUTF8String:appleScriptSource.toRawUTF8()];
+        NSAppleScript* script = [[NSAppleScript alloc] initWithSource:src];
+        NSDictionary* errorInfo = nil;
+        NSAppleEventDescriptor* desc = [script executeAndReturnError:&errorInfo];
 
-    return false;
+        tempScript.deleteFile();
+
+        return (desc != nil && errorInfo == nil);
+    }
 }
 #endif
 

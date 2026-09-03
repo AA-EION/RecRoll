@@ -95,8 +95,9 @@ target_link_libraries(RecRoll PRIVATE
     juce::juce_gui_extra
 )
 
-# Ad-hoc code signing on macOS for Gatekeeper support
+# Ad-hoc code signing and Objective-C++ configuration on macOS
 if (APPLE)
+    set_source_files_properties(Source/UninstallerHelper.cpp PROPERTIES LANGUAGE OBJCXX)
     add_custom_command(TARGET RecRoll_Standalone POST_BUILD
         COMMAND codesign --force --deep -s - "$<TARGET_FILE_DIR:RecRoll_Standalone>/../.."
         COMMENT "Ad-hoc code signing RecRoll Standalone app for Gatekeeper"
