@@ -1,0 +1,31 @@
+# Build directories
+build/
+build-*/
+cmake-build-*/
+out/
+dist/
+
+# Artifacts & temp files
+RecRoll_artefacts/
+*.wav
+*.tmp
+*.log
+
+# IDE & Editor files
+.vs/
+*.sln
+*.vcxproj*
+.idea/
+.vscode/
+*.xcodeproj/
+*.xcworkspace/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Package & installer outputs
+*.pkg
+*.dmg
+*.iss.bak

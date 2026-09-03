@@ -1,0 +1,140 @@
+name: Build and Release RecRoll
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Windows (Universal x64 + ARM64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSVC developer prompt
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+
+      # 1. Build x64 (Intel / AMD)
+      - name: Configure CMake (x64)
+        run: >
+          cmake -B build-x64 -G "Visual Studio 17 2022" -A x64
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build RecRoll (x64)
+        run: cmake --build build-x64 --config Release --parallel
+
+      # 2. Build ARM64 (Snapdragon X / Windows on ARM)
+      - name: Configure CMake (ARM64)
+        run: >
+          cmake -B build-arm64 -G "Visual Studio 17 2022" -A ARM64
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build RecRoll (ARM64)
+        run: cmake --build build-arm64 --config Release --parallel
+
+      # 3. Stage Binaries for Installer
+      - name: Stage binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "build/bin/x64"
+          New-Item -ItemType Directory -Force -Path "build/bin/arm64"
+          New-Item -ItemType Directory -Force -Path "dist"
+
+          # Copy x64 outputs
+          Get-ChildItem -Path "build-x64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse $_.FullName "build/bin/x64/RecRoll.vst3" }
+          Get-ChildItem -Path "build-x64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/x64/RecRoll.clap" }
+          Get-ChildItem -Path "build-x64" -Filter "RecRoll.exe" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/x64/RecRoll.exe" }
+
+          # Copy ARM64 outputs
+          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse $_.FullName "build/bin/arm64/RecRoll.vst3" }
+          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/arm64/RecRoll.clap" }
+          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.exe" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/arm64/RecRoll.exe" }
+
+          # Create portable zips
+          Compress-Archive -Path "build/bin/x64/*" -DestinationPath "dist/RecRoll-Windows-x64-Portable.zip"
+          Compress-Archive -Path "build/bin/arm64/*" -DestinationPath "dist/RecRoll-Windows-arm64-Portable.zip"
+
+      # 4. Compile Unified Inno Setup Installer
+      - name: Compile Windows Installer
+        shell: cmd
+        run: iscc installer\windows\RecRoll.iss
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RecRoll-Windows
+          path: dist/*
+
+  build-macos:
+    name: macOS (Universal 2: arm64 + x86_64)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure CMake Universal
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DCMAKE_OSX_DEPLOYMENT_TARGET="11.0"
+
+      - name: Build Plugins and Standalone
+        run: cmake --build build --config Release --parallel
+
+      - name: Package PKG Installer and DMG
+        run: |
+          chmod +x installer/macos/build_installer.sh installer/macos/uninstall.sh
+          ./installer/macos/build_installer.sh
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RecRoll-macOS
+          path: dist/*
+
+  release:
+    name: Create GitHub Release
+    needs: [build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Prepare Release Directory
+        run: |
+          mkdir -p release-files
+          find release-artifacts -type f -exec cp {} release-files/ \;
+          ls -la release-files/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
