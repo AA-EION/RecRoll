@@ -16,7 +16,7 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
 
     // Title Label
     titleLabel.setText("RECROLL", juce::dontSendNotification);
-    titleLabel.setFont(juce::FontOptions(20.0f).withExtraKerningFactor(0.12f));
+    titleLabel.setFont(juce::FontOptions(20.0f).withKerningFactor(0.12f));
     titleLabel.setColour(juce::Label::textColourId, juce::Colour(0xff00e5ff));
     addAndMakeVisible(titleLabel);
 

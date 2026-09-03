@@ -30,7 +30,10 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
         "- System package installer receipts\n\n"
         "This operation cannot be undone.";
 
-    auto options = juce::MessageBoxOptions::makeOptionsYesNo(title, message)
+    auto options = juce::MessageBoxOptions()
+        .withIconType(juce::MessageBoxIconType::QuestionIcon)
+        .withTitle(title)
+        .withMessage(message)
         .withButtonLabels("Uninstall", "Cancel")
         .withParentComponent(parentComponent);
 
@@ -43,32 +46,38 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
         bool success = executeMacOSUninstall();
         if (success)
         {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::AlertWindow::InfoIcon,
-                "Uninstallation Complete",
-                "RecRoll and all associated plugins and files have been removed.\nThe app will now exit.",
-                "OK",
-                nullptr,
-                juce::ModalCallbackFunction::create([](int)
-                {
-                    juce::JUCEApplicationBase::quit();
-                }));
+            auto okOptions = juce::MessageBoxOptions()
+                .withIconType(juce::MessageBoxIconType::InfoIcon)
+                .withTitle("Uninstallation Complete")
+                .withMessage("RecRoll and all associated plugins and files have been removed.\nThe app will now exit.")
+                .withButtonLabels("OK");
+
+            juce::AlertWindow::showAsync(okOptions, [](int)
+            {
+                juce::JUCEApplicationBase::quit();
+            });
         }
         else
         {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::AlertWindow::WarningIcon,
-                "Uninstallation Cancelled or Failed",
-                "Uninstallation was not completed. If administrator privileges were denied, please try again.");
+            auto errOptions = juce::MessageBoxOptions()
+                .withIconType(juce::MessageBoxIconType::WarningIcon)
+                .withTitle("Uninstallation Cancelled or Failed")
+                .withMessage("Uninstallation was not completed. If administrator privileges were denied, please try again.")
+                .withButtonLabels("OK");
+
+            juce::AlertWindow::showAsync(errOptions, nullptr);
         }
 #elif JUCE_WINDOWS
         bool success = executeWindowsUninstall();
         if (!success)
         {
-            juce::AlertWindow::showMessageBoxAsync(
-                juce::AlertWindow::WarningIcon,
-                "Uninstaller Not Found",
-                "Could not automatically launch the Windows uninstaller.\nYou can uninstall RecRoll from Windows Settings -> Installed Apps, or run installer/windows/uninstall.ps1.");
+            auto errOptions = juce::MessageBoxOptions()
+                .withIconType(juce::MessageBoxIconType::WarningIcon)
+                .withTitle("Uninstaller Not Found")
+                .withMessage("Could not automatically launch the Windows uninstaller.\nYou can uninstall RecRoll from Windows Settings -> Installed Apps, or run installer/windows/uninstall.ps1.")
+                .withButtonLabels("OK");
+
+            juce::AlertWindow::showAsync(errOptions, nullptr);
         }
 #endif
     });
