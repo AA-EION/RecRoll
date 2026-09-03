@@ -1,6 +1,7 @@
 #include "UninstallerHelper.h"
 
 #if JUCE_MAC
+#import <Foundation/Foundation.h>
 #include <cstdlib>
 #elif JUCE_WINDOWS
 #include <windows.h>
@@ -85,8 +86,6 @@ void UninstallerHelper::promptAndExecuteUninstall(juce::Component* parentCompone
 }
 
 #if JUCE_MAC
-#import <Foundation/Foundation.h>
-
 bool UninstallerHelper::executeMacOSUninstall()
 {
     juce::File tempScript = juce::File::getSpecialLocation(juce::File::tempDirectory)
