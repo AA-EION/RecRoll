@@ -41,6 +41,19 @@ private:
     juce::TextButton auditionBtn     { "Audition" };
     juce::ToggleButton normalizeBtn  { "Normalize" };
     juce::ToggleButton muteThruBtn   { "Mute Thru" };
+    juce::TextButton donateHeaderBtn { "Donate" };
+
+    // Session Donation Banner (Appears each time editor is loaded)
+    struct DonationBanner : public juce::Component
+    {
+        juce::Label messageLabel;
+        juce::TextButton donateBtn   { "Donate via PayPal" };
+        juce::TextButton dismissBtn  { "X" };
+
+        DonationBanner();
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+    } donationBanner;
 
     // Bottom Bar Controls & Labels
     juce::Label timeSelectionLabel;
@@ -53,6 +66,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> muteThruAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> normalizeAttachment;
 
+    void openDonationLink();
     void updateDurationButtonStyles(double activeSeconds);
     void setDurationChoice(int choiceIndex);
 

@@ -202,7 +202,7 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
             if (offset > availablePeaks)
                 continue;
 
-            int64_t idx = curPeakHead - offset;
+            int64_t idx = (curPeakHead - 1) - offset;
             while (idx < 0) idx += peakCapacity;
             idx %= peakCapacity;
 

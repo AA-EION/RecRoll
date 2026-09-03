@@ -132,14 +132,13 @@ bool UninstallerHelper::executeMacOSUninstall()
 bool UninstallerHelper::executeWindowsUninstall()
 {
     // Try to locate Inno Setup uninstaller in standard installation directory
-    juce::File progFiles = juce::File::getSpecialLocation(juce::File::commonProgramFilesDirectory)
-                               .getParentDirectory()
+    juce::File progFiles = juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
                                .getChildFile("RecRoll");
 
     auto uninsExe = progFiles.getChildFile("unins000.exe");
     if (!uninsExe.existsAsFile())
     {
-        // Try 64-bit Program Files
+        // Fallback check
         progFiles = juce::File("C:\\Program Files\\RecRoll");
         uninsExe = progFiles.getChildFile("unins000.exe");
     }

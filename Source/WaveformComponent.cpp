@@ -257,39 +257,59 @@ void WaveformComponent::paint(juce::Graphics& g)
     {
         buffer.getVisiblePeaks(peakCache, pixelWidth);
 
-        // Path for Left channel (top half)
-        juce::Path waveL;
-        // Path for Right channel (bottom half)
-        juce::Path waveR;
-
-        waveL.preallocateSpace(pixelWidth * 4);
-        waveR.preallocateSpace(pixelWidth * 4);
-
+        // 1. Draw glowing background filled envelope
+        g.setColour(juce::Colour(0x3300e5ff));
         for (int x = 0; x < pixelWidth && x < static_cast<int>(peakCache.size()); ++x)
         {
             float px = bounds.getX() + static_cast<float>(x);
             const auto& p = peakCache[static_cast<size_t>(x)];
 
-            // Left channel (mapped to upper half: centerY upwards)
-            float yMinL = centerY - (std::abs(p.minL) * halfHeight * 0.95f);
-            float yMaxL = centerY - (std::abs(p.maxL) * halfHeight * 0.95f);
-            if (yMinL == yMaxL) yMaxL += 1.0f;
+            float peakMax = std::max({ p.maxL, p.maxR, 0.0f });
+            float peakMin = std::min({ p.minL, p.minR, 0.0f });
 
-            // Right channel (mapped to lower half: centerY downwards)
-            float yMinR = centerY + (std::abs(p.minR) * halfHeight * 0.95f);
-            float yMaxR = centerY + (std::abs(p.maxR) * halfHeight * 0.95f);
-            if (yMinR == yMaxR) yMaxR += 1.0f;
-
-            waveL.addLineSegment(juce::Line<float>(px, yMinL, px, yMaxL), 1.0f);
-            waveR.addLineSegment(juce::Line<float>(px, yMinR, px, yMaxR), 1.0f);
+            if (peakMax > 0.0001f || peakMin < -0.0001f)
+            {
+                float yTop = centerY - (peakMax * halfHeight * 0.95f);
+                float yBottom = centerY - (peakMin * halfHeight * 0.95f);
+                if (yBottom - yTop < 2.0f)
+                {
+                    yTop = centerY - 1.0f;
+                    yBottom = centerY + 1.0f;
+                }
+                g.drawVerticalLine(static_cast<int>(px), yTop, yBottom);
+            }
         }
 
-        // Draw waveform paths with energetic cyan / turquoise glow
-        g.setColour(juce::Colour(0xdd00e5ff));
-        g.strokePath(waveL, juce::PathStrokeType(1.2f));
+        // 2. Draw solid bright cyan waveform bars
+        for (int x = 0; x < pixelWidth && x < static_cast<int>(peakCache.size()); ++x)
+        {
+            float px = bounds.getX() + static_cast<float>(x);
+            const auto& p = peakCache[static_cast<size_t>(x)];
 
-        g.setColour(juce::Colour(0xaa00b4d8));
-        g.strokePath(waveR, juce::PathStrokeType(1.2f));
+            // Combined stereo peak envelope
+            float magL = std::max(std::abs(p.minL), std::abs(p.maxL));
+            float magR = std::max(std::abs(p.minR), std::abs(p.maxR));
+            float maxMag = std::max(magL, magR);
+
+            if (maxMag > 0.0002f)
+            {
+                float peakPositive = std::max({ 0.0f, p.maxL, p.maxR });
+                float peakNegative = std::min({ 0.0f, p.minL, p.minR });
+
+                float yTop = centerY - (peakPositive * halfHeight * 0.95f);
+                float yBottom = centerY - (peakNegative * halfHeight * 0.95f);
+
+                if (yBottom - yTop < 2.0f)
+                {
+                    yTop = centerY - 1.0f;
+                    yBottom = centerY + 1.0f;
+                }
+
+                // Vibrant electric cyan waveform
+                g.setColour(juce::Colour(0xff00e5ff));
+                g.drawVerticalLine(static_cast<int>(px), yTop, yBottom);
+            }
+        }
     }
 
     // Zero-crossing center line

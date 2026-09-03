@@ -6,13 +6,44 @@
 namespace RecRoll
 {
 
+RecRollAudioProcessorEditor::DonationBanner::DonationBanner()
+{
+    messageLabel.setText("Support RecRoll open-source development! ❤️", juce::dontSendNotification);
+    messageLabel.setFont(juce::FontOptions(13.0f));
+    messageLabel.setColour(juce::Label::textColourId, juce::Colour(0xffffe082));
+    addAndMakeVisible(messageLabel);
+
+    donateBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffffb300));
+    donateBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff1a1300));
+    addAndMakeVisible(donateBtn);
+
+    dismissBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0x00000000));
+    dismissBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffb0bec5));
+    addAndMakeVisible(dismissBtn);
+}
+
+void RecRollAudioProcessorEditor::DonationBanner::paint(juce::Graphics& g)
+{
+    g.fillAll(juce::Colour(0xff292015)); // Warm amber banner
+    g.setColour(juce::Colour(0x66ffb300));
+    g.drawRect(getLocalBounds(), 1);
+}
+
+void RecRollAudioProcessorEditor::DonationBanner::resized()
+{
+    auto b = getLocalBounds().reduced(8, 4);
+    dismissBtn.setBounds(b.removeFromRight(28));
+    donateBtn.setBounds(b.removeFromRight(150).reduced(4, 1));
+    messageLabel.setBounds(b);
+}
+
 RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p), waveform(p.getRollingBuffer())
 {
     // Make window nicely resizable
     setResizable(true, true);
     setResizeLimits(700, 380, 1920, 1200);
-    setSize(860, 460);
+    setSize(860, 480);
 
     // Title Label
     titleLabel.setText("RECROLL", juce::dontSendNotification);
@@ -62,6 +93,18 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
     muteThruBtn.setTooltip("Mute incoming audio passthrough to hear only audition playback");
     addAndMakeVisible(muteThruBtn);
 
+    // Persistent Donate button in header
+    donateHeaderBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff332612));
+    donateHeaderBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffffc107));
+    donateHeaderBtn.setTooltip("Support RecRoll development via PayPal");
+    donateHeaderBtn.addListener(this);
+    addAndMakeVisible(donateHeaderBtn);
+
+    // Session Donation Banner (visible on every session load)
+    donationBanner.donateBtn.addListener(this);
+    donationBanner.dismissBtn.addListener(this);
+    addAndMakeVisible(donationBanner);
+
     // Waveform display
     addAndMakeVisible(waveform);
 
@@ -93,12 +136,16 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
     statusInfoLabel.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(statusInfoLabel);
 
-    // Uninstall button
+    // Uninstall button - ONLY shown on Standalone application, hidden in VST3, CLAP, and AU
+    bool isStandalone = (processorRef.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+                     || juce::JUCEApplicationBase::isStandaloneApp();
     uninstallBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e2029));
     uninstallBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff888888));
     uninstallBtn.setTooltip("Completely uninstall RecRoll plugins and application from system");
     uninstallBtn.addListener(this);
-    addAndMakeVisible(uninstallBtn);
+    uninstallBtn.setVisible(isStandalone);
+    if (isStandalone)
+        addAndMakeVisible(uninstallBtn);
 
     // Connect APVTS attachments
     freezeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
@@ -115,6 +162,9 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
 
 RecRollAudioProcessorEditor::~RecRollAudioProcessorEditor()
 {
+    donateHeaderBtn.removeListener(this);
+    donationBanner.donateBtn.removeListener(this);
+    donationBanner.dismissBtn.removeListener(this);
     clearBtn.removeListener(this);
     auditionBtn.removeListener(this);
     normalizeBtn.removeListener(this);
@@ -167,6 +217,11 @@ void RecRollAudioProcessorEditor::setDurationChoice(int choiceIndex)
     waveform.clearSelection();
 }
 
+void RecRollAudioProcessorEditor::openDonationLink()
+{
+    juce::URL("https://www.paypal.com/donate/?business=juanesgtgt2@gmail.com&no_recurring=0&item_name=RecRoll+Plugin+Support&currency_code=USD").launchInDefaultBrowser();
+}
+
 void RecRollAudioProcessorEditor::buttonClicked(juce::Button* button)
 {
     if (button == &duration15sBtn)       setDurationChoice(0);
@@ -187,6 +242,15 @@ void RecRollAudioProcessorEditor::buttonClicked(juce::Button* button)
     else if (button == &normalizeBtn)
     {
         waveform.setNormalizeExport(normalizeBtn.getToggleState());
+    }
+    else if (button == &donateHeaderBtn || button == &donationBanner.donateBtn)
+    {
+        openDonationLink();
+    }
+    else if (button == &donationBanner.dismissBtn)
+    {
+        donationBanner.setVisible(false);
+        resized();
     }
     else if (button == &uninstallBtn)
     {
@@ -248,9 +312,18 @@ void RecRollAudioProcessorEditor::resized()
     normalizeBtn.setBounds(headerArea.removeFromLeft(70).reduced(4, 3));
     muteThruBtn.setBounds(headerArea.removeFromLeft(90).reduced(4, 3));
 
+    donateHeaderBtn.setBounds(headerArea.removeFromRight(80).reduced(2, 2));
+
+    // Session Donation Banner (Appears each time editor is loaded into a session)
+    if (donationBanner.isVisible())
+    {
+        donationBanner.setBounds(area.removeFromTop(36).reduced(10, 2));
+    }
+
     // Bottom Bar (48px high)
     auto bottomArea = area.removeFromBottom(48).reduced(12, 8);
-    uninstallBtn.setBounds(bottomArea.removeFromRight(85).reduced(2, 2));
+    if (uninstallBtn.isVisible())
+        uninstallBtn.setBounds(bottomArea.removeFromRight(85).reduced(2, 2));
     statusInfoLabel.setBounds(bottomArea.removeFromRight(170));
 
     dragAudioBtn.setBounds(bottomArea.removeFromRight(190).reduced(6, 2));
