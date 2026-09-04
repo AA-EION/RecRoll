@@ -7,6 +7,16 @@ on:
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish this build as this tag (e.g. v1.0.0). Leave empty to build without releasing."
+        required: false
+        default: ""
+      replace_existing:
+        description: "Delete any existing release and tag of that name first, so the release is recreated clean rather than updated in place."
+        type: boolean
+        required: false
+        default: true
 
 permissions:
   contents: write
@@ -114,12 +124,23 @@ jobs:
   release:
     name: "Create GitHub Release"
     needs: [build-windows, build-macos]
-    if: ${{ always() && (needs.build-macos.result == 'success' || needs.build-windows.result == 'success') && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
+    # A tag push releases under that tag. A manual run releases only when it was
+    # given a release_tag, so the button stays usable as a plain build check.
+    if: ${{ always() && (needs.build-macos.result == 'success' || needs.build-windows.result == 'success') && (startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != '') }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            echo "name=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -132,9 +153,27 @@ jobs:
           find release-artifacts -type f -exec cp {} release-files/ \;
           ls -la release-files/
 
+      # Recreating beats updating in place: an update leaves assets from an
+      # earlier run attached to the release alongside the new ones.
+      - name: Remove existing release and tag
+        if: ${{ inputs.replace_existing }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Deleting existing release $TAG (and its tag)."
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          else
+            echo "No existing release named $TAG."
+            git push --delete origin "$TAG" 2>/dev/null || echo "No existing tag $TAG."
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.name }}
+          target_commitish: ${{ github.sha }}
           files: release-files/*
           generate_release_notes: true
           draft: false
