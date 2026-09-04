@@ -12,8 +12,19 @@ RollingBuffer::RollingBuffer()
 
 void RollingBuffer::prepare(double sampleRate, int numChannels, double maxDurationSeconds)
 {
-    currentSampleRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
-    numAudioChannels = std::max(1, numChannels);
+    double targetRate = (sampleRate > 0.0) ? sampleRate : 44100.0;
+    int targetChannels = std::max(2, numChannels);
+
+    // If already prepared at this sample rate with full capacity, preserve existing audio history!
+    if (std::abs(currentSampleRate - targetRate) < 1.0
+        && bufferCapacitySamples > 0
+        && static_cast<int>(audioChannels.size()) >= targetChannels)
+    {
+        return;
+    }
+
+    currentSampleRate = targetRate;
+    numAudioChannels = targetChannels;
 
     // Round up capacity
     bufferCapacitySamples = static_cast<int64_t>(std::ceil(currentSampleRate * maxDurationSeconds));
@@ -59,7 +70,8 @@ void RollingBuffer::setVisibleDurationSeconds(double seconds)
 void RollingBuffer::write(const juce::AudioBuffer<float>& inputBuffer)
 {
     const int numSamples = inputBuffer.getNumSamples();
-    if (numSamples <= 0 || bufferCapacitySamples <= 0)
+    const int inputChannels = inputBuffer.getNumChannels();
+    if (numSamples <= 0 || inputChannels <= 0 || bufferCapacitySamples <= 0)
         return;
 
     if (!recordingActive.load(std::memory_order_relaxed))
@@ -68,9 +80,8 @@ void RollingBuffer::write(const juce::AudioBuffer<float>& inputBuffer)
     int64_t currentHead = writeHead.load(std::memory_order_relaxed);
     int64_t currentPeakHead = peakWriteHead.load(std::memory_order_relaxed);
 
-    const int channelsToCopy = std::min(numAudioChannels, inputBuffer.getNumChannels());
     const float* inL = inputBuffer.getReadPointer(0);
-    const float* inR = (channelsToCopy > 1) ? inputBuffer.getReadPointer(1) : inL;
+    const float* inR = (inputChannels > 1) ? inputBuffer.getReadPointer(1) : inL;
 
     for (int i = 0; i < numSamples; ++i)
     {
