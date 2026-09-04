@@ -35,10 +35,10 @@ void AudioExportHelper::cleanupOldTempFiles()
     }
 }
 
-juce::File AudioExportHelper::exportSliceToTempWav(const RollingBuffer& buffer,
-                                                  int64_t startOffsetFromNow,
-                                                  int64_t numSamples,
-                                                  bool normalize)
+juce::File AudioExportHelper::exportAbsoluteSliceToTempWav(const RollingBuffer& buffer,
+                                                          int64_t absoluteStartSample,
+                                                          int64_t numSamples,
+                                                          bool normalize)
 {
     cleanupOldTempFiles();
 
@@ -57,7 +57,7 @@ juce::File AudioExportHelper::exportSliceToTempWav(const RollingBuffer& buffer,
         numSamples = static_cast<int64_t>(buffer.getSampleRate() * 1.0); // 1 second fallback
 
     juce::AudioBuffer<float> slice(2, static_cast<int>(numSamples));
-    int samplesRead = const_cast<RollingBuffer&>(buffer).readSlice(slice, startOffsetFromNow, static_cast<int>(numSamples));
+    int samplesRead = const_cast<RollingBuffer&>(buffer).readSliceAbsolute(slice, absoluteStartSample, static_cast<int>(numSamples));
 
     if (samplesRead <= 0)
     {
@@ -105,6 +105,15 @@ juce::File AudioExportHelper::exportSliceToTempWav(const RollingBuffer& buffer,
     }
 
     return targetFile;
+}
+
+juce::File AudioExportHelper::exportSliceToTempWav(const RollingBuffer& buffer,
+                                                  int64_t startOffsetFromNow,
+                                                  int64_t numSamples,
+                                                  bool normalize)
+{
+    int64_t absoluteStart = buffer.getTotalSamplesWritten() - startOffsetFromNow;
+    return exportAbsoluteSliceToTempWav(buffer, absoluteStart, numSamples, normalize);
 }
 
 } // namespace RecRoll

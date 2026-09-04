@@ -24,7 +24,7 @@ namespace
        #if defined(JucePlugin_VersionString)
         return juce::String(JucePlugin_VersionString);
        #else
-        return "1.0.0";
+        return "1.1.0";
        #endif
     }
 }

@@ -23,6 +23,20 @@ public:
     void mouseDrag(const juce::MouseEvent& e) override;
     void mouseUp(const juce::MouseEvent& e) override;
     void mouseDoubleClick(const juce::MouseEvent& e) override;
+    void mouseEnter(const juce::MouseEvent& e) override;
+    void mouseExit(const juce::MouseEvent& e) override;
+    void mouseMove(const juce::MouseEvent& e) override;
+
+    /** Freezes visual waveform scrolling at the current moment without halting recording. */
+    void freezeView();
+
+    /** Resumes live visual scrolling. */
+    void unfreezeView();
+
+    /** Called when an external drag-and-drop operation completes. */
+    void onDragOperationEnded();
+
+    bool isViewCurrentlyFrozen() const noexcept { return isViewFrozen; }
 
     /** Sets whether normalization is applied when dragging to DAW. */
     void setNormalizeExport(bool shouldNormalize) { normalizeExport = shouldNormalize; }
@@ -48,6 +62,10 @@ private:
     std::vector<RollingBuffer::PeakData> peakCache;
 
     bool normalizeExport { false };
+
+    // Visual view freeze state (scrolling pauses, recording continues)
+    bool isViewFrozen { false };
+    int64_t frozenEndSample { -1 };
 
     // Selection range normalized to [0.0, 1.0] where 0.0 is oldest (left) and 1.0 is newest (right / Now)
     double selectionStartNormalized { 0.0 };
