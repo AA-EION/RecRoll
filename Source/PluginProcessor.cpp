@@ -102,13 +102,15 @@ void RecRollAudioProcessor::releaseResources()
 
 bool RecRollAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // Stereo or Mono passthrough supported
-    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+    const auto& mainIn  = layouts.getMainInputChannelSet();
+    const auto& mainOut = layouts.getMainOutputChannelSet();
+
+    // Must be Mono or Stereo output
+    if (mainOut != juce::AudioChannelSet::mono() && mainOut != juce::AudioChannelSet::stereo())
         return false;
 
-    // Input layout must match output layout for transparent audio passthrough
-    if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
+    // Input can be Mono or Stereo
+    if (mainIn != juce::AudioChannelSet::mono() && mainIn != juce::AudioChannelSet::stereo())
         return false;
 
     return true;
@@ -120,10 +122,22 @@ void RecRollAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     const int totalNumInputChannels  = getTotalNumInputChannels();
     const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numSamples = buffer.getNumSamples();
 
-    // Clear unused output channels
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+    if (numSamples <= 0 || totalNumInputChannels <= 0)
+        return;
+
+    // If Mono input on a Stereo track, duplicate mono input to stereo output
+    if (totalNumInputChannels == 1 && totalNumOutputChannels >= 2)
+    {
+        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+    }
+    else
+    {
+        // Clear any unused extra output channels
+        for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+            buffer.clear(i, 0, numSamples);
+    }
 
     // Update settings from parameters
     if (freezeBufferParam != nullptr)

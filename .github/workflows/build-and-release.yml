@@ -48,14 +48,19 @@ jobs:
           New-Item -ItemType Directory -Force -Path "dist"
 
           # Copy x64 outputs
-          Get-ChildItem -Path "build-x64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse $_.FullName "build/bin/x64/RecRoll.vst3" }
-          Get-ChildItem -Path "build-x64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/x64/RecRoll.clap" }
-          Get-ChildItem -Path "build-x64" -Filter "RecRoll.exe" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/x64/RecRoll.exe" }
+          Get-ChildItem -Path "build-x64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse -Force $_.FullName "build/bin/x64/RecRoll.vst3" }
+          Get-ChildItem -Path "build-x64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Force $_.FullName "build/bin/x64/RecRoll.clap" }
+          Get-ChildItem -Path "build-x64" -Filter "*RecRoll*.exe" -Recurse | Where-Object { $_.Name -notmatch "vstest" } | Select-Object -First 1 | ForEach-Object { Copy-Item -Force $_.FullName "build/bin/x64/RecRoll.exe" }
 
           # Copy ARM64 outputs
-          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse $_.FullName "build/bin/arm64/RecRoll.vst3" }
-          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/arm64/RecRoll.clap" }
-          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.exe" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "build/bin/arm64/RecRoll.exe" }
+          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.vst3" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Recurse -Force $_.FullName "build/bin/arm64/RecRoll.vst3" }
+          Get-ChildItem -Path "build-arm64" -Filter "RecRoll.clap" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item -Force $_.FullName "build/bin/arm64/RecRoll.clap" }
+          Get-ChildItem -Path "build-arm64" -Filter "*RecRoll*.exe" -Recurse | Where-Object { $_.Name -notmatch "vstest" } | Select-Object -First 1 | ForEach-Object { Copy-Item -Force $_.FullName "build/bin/arm64/RecRoll.exe" }
+
+          Write-Host "Staged x64 files:"
+          Get-ChildItem "build/bin/x64"
+          Write-Host "Staged arm64 files:"
+          Get-ChildItem "build/bin/arm64"
 
           # Create portable zips
           Compress-Archive -Path "build/bin/x64/*" -DestinationPath "dist/RecRoll-Windows-x64-Portable.zip"
@@ -74,6 +79,7 @@ jobs:
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: RecRoll-Windows
           path: dist/*
@@ -108,7 +114,7 @@ jobs:
   release:
     name: "Create GitHub Release"
     needs: [build-windows, build-macos]
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ always() && (needs.build-macos.result == 'success' || needs.build-windows.result == 'success') && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
 
     steps:
