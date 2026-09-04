@@ -50,6 +50,9 @@ public:
      */
     void write(const juce::AudioBuffer<float>& inputBuffer);
 
+    /** Total samples written since the last clear, as an absolute timeline position. */
+    int64_t getAbsolutePosition() const noexcept { return totalSamplesWritten.load(std::memory_order_acquire); }
+
     /**
      * Reads a slice from the circular buffer into destBuffer.
      * startSampleOffsetFromNow: 0 is current write head, positive values go back in time.
@@ -120,9 +123,13 @@ private:
     int peakAccumulatorCount { 0 };
     PeakData currentBucketPeak;
 
-    // Audition playback state
+    // Audition playback state.
+    // auditionAbsoluteStart is a position on the absolute recorded timeline, not
+    // a distance back from the write head. A head-relative start would drift:
+    // the head advances one block per callback and the play cursor advances
+    // another, so playback ran at double speed whenever recording was live.
     std::atomic<bool> auditionPlaying { false };
-    std::atomic<int64_t> auditionStartSample { 0 };
+    std::atomic<int64_t> auditionAbsoluteStart { 0 };
     std::atomic<int64_t> auditionLengthSamples { 0 };
     std::atomic<int64_t> auditionCurrentOffset { 0 };
 };

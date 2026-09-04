@@ -59,6 +59,43 @@ private:
     // Bottom Bar Controls & Labels
     juce::Label timeSelectionLabel;
     juce::TextButton dragAudioBtn    { "DRAG AUDIO TO DAW" };
+
+    /**
+     * Turns a drag starting on the "DRAG AUDIO TO DAW" button into a real OS
+     * drag.
+     *
+     * The button used to forward its raw mouse events to the waveform, but a
+     * MouseEvent is expressed in the coordinate space of the component it
+     * happened on - so button-local x values were being read as waveform
+     * positions. That re-anchored the selection to a meaningless point on every
+     * press, and the waveform's mouseUp then saw a zero-width selection and
+     * expanded it to the whole buffer. The button consequently exported
+     * everything and never the actual selection.
+     */
+    struct DragButtonListener : public juce::MouseListener
+    {
+        explicit DragButtonListener(WaveformComponent& w) : waveform(w) {}
+
+        void mouseDown(const juce::MouseEvent&) override { startedDrag = false; }
+
+        void mouseDrag(const juce::MouseEvent& e) override
+        {
+            if (!startedDrag && e.getDistanceFromDragStart() > 8)
+            {
+                startedDrag = true;
+                waveform.startDawDragOperation();
+            }
+        }
+
+        WaveformComponent& waveform;
+
+        /** Set once a drag has been handed to the OS, so the button's own click
+            callback does not export the same selection a second time. Cleared on
+            the next press, which always precedes that callback. */
+        bool startedDrag { false };
+    };
+
+    DragButtonListener dragButtonListener { waveform };
     juce::Label statusInfoLabel;
     juce::TextButton aboutBtn        { "About" };
     juce::TextButton uninstallBtn    { "Uninstall..." };

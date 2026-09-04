@@ -250,7 +250,12 @@ void RollingBuffer::startAudition(int64_t startSampleOffsetFromNow, int64_t numS
     if (numSamples <= 0)
         return;
 
-    auditionStartSample.store(startSampleOffsetFromNow, std::memory_order_relaxed);
+    // Pin the selection to the absolute timeline once, here. Everything after
+    // this reads from a fixed point rather than chasing a moving write head.
+    const int64_t absoluteStart = totalSamplesWritten.load(std::memory_order_acquire)
+                                - startSampleOffsetFromNow;
+
+    auditionAbsoluteStart.store(absoluteStart, std::memory_order_relaxed);
     auditionLengthSamples.store(numSamples, std::memory_order_relaxed);
     auditionCurrentOffset.store(0, std::memory_order_relaxed);
     auditionPlaying.store(true, std::memory_order_release);
@@ -283,7 +288,7 @@ void RollingBuffer::processAuditionBlock(juce::AudioBuffer<float>& outputBuffer)
     const int numSamples = outputBuffer.getNumSamples();
     const int numChannels = std::min(outputBuffer.getNumChannels(), numAudioChannels);
 
-    const int64_t startOffset = auditionStartSample.load(std::memory_order_relaxed);
+    const int64_t absoluteStart = auditionAbsoluteStart.load(std::memory_order_relaxed);
     const int64_t totalAuditionLen = auditionLengthSamples.load(std::memory_order_relaxed);
     int64_t curOffset = auditionCurrentOffset.load(std::memory_order_relaxed);
 
@@ -294,14 +299,11 @@ void RollingBuffer::processAuditionBlock(juce::AudioBuffer<float>& outputBuffer)
     }
 
     const int samplesToPlay = static_cast<int>(std::min(static_cast<int64_t>(numSamples), totalAuditionLen - curOffset));
-    const int64_t head = writeHead.load(std::memory_order_relaxed);
 
-    // Calculate source ring buffer position
-    // startOffset is distance back in time from head.
-    // As curOffset advances, we move forward towards head.
-    int64_t sourcePos = head - startOffset + curOffset;
+    // Map the absolute timeline position onto the ring. The play cursor now
+    // advances only by what we consume, independently of the write head.
+    int64_t sourcePos = (absoluteStart + curOffset) % bufferCapacitySamples;
     while (sourcePos < 0) sourcePos += bufferCapacitySamples;
-    sourcePos %= bufferCapacitySamples;
 
     for (int ch = 0; ch < numChannels; ++ch)
     {

@@ -124,8 +124,14 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
     dragAudioBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff00bcd4));
     dragAudioBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xff051016));
     dragAudioBtn.setTooltip("Click and drag from here directly into your DAW track or desktop");
-    dragAudioBtn.addMouseListener(&waveform, false);
-    dragAudioBtn.onClick = [this]() { waveform.startDawDragOperation(); };
+    dragAudioBtn.addMouseListener(&dragButtonListener, false);
+    dragAudioBtn.onClick = [this]()
+    {
+        // A drag already handed to the OS has done the export; a plain click
+        // still exports the current selection.
+        if (!dragButtonListener.startedDrag)
+            waveform.startDawDragOperation();
+    };
     addAndMakeVisible(dragAudioBtn);
 
     juce::String srStr = juce::String(processorRef.getSampleRate() / 1000.0, 1) + " kHz";
@@ -181,6 +187,7 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
 
 RecRollAudioProcessorEditor::~RecRollAudioProcessorEditor()
 {
+    dragAudioBtn.removeMouseListener(&dragButtonListener);
     donateHeaderBtn.removeListener(this);
     aboutBtn.removeListener(this);
     donationBanner.donateBtn.removeListener(this);
