@@ -120,22 +120,23 @@ void RecRollAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 {
     juce::ScopedNoDenormals noDenormals;
 
-    const int totalNumInputChannels  = getTotalNumInputChannels();
-    const int totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
+    const int totalNumOutputChannels = getTotalNumOutputChannels();
 
-    if (numSamples <= 0 || totalNumInputChannels <= 0)
+    if (numSamples <= 0 || numChannels <= 0)
         return;
 
     // If Mono input on a Stereo track, duplicate mono input to stereo output
-    if (totalNumInputChannels == 1 && totalNumOutputChannels >= 2)
+    if ((getTotalNumInputChannels() == 1 || numChannels == 1) && totalNumOutputChannels >= 2)
     {
-        buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
+        if (numChannels >= 2)
+            buffer.copyFrom(1, 0, buffer, 0, 0, numSamples);
     }
     else
     {
         // Clear any unused extra output channels
-        for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+        for (auto i = numChannels; i < totalNumOutputChannels; ++i)
             buffer.clear(i, 0, numSamples);
     }
 

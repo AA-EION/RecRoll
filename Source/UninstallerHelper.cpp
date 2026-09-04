@@ -98,23 +98,32 @@ bool UninstallerHelper::executeMacOSUninstall()
     userHome.getChildFile("Library/Preferences/com.recrollaudio.recroll.plist").deleteFile();
     userHome.getChildFile("Library/Saved Application State/com.recrollaudio.recroll.savedState").deleteRecursively();
 
-    // 2. Build privileged shell command for system files, launch agents, and package receipts
-    juce::String systemCommands =
-        "rm -rf '/Applications/RecRoll.app' "
-        "'/Library/Audio/Plug-Ins/VST3/RecRoll.vst3' "
-        "'/Library/Audio/Plug-Ins/CLAP/RecRoll.clap' "
-        "'/Library/Audio/Plug-Ins/Components/RecRoll.component' "
-        "'/Library/Application Support/RecRoll' "
-        "'/Library/LaunchAgents/com.recrollaudio'* "
-        "'/Library/LaunchDaemons/com.recrollaudio'* "
-        "'/var/db/receipts/com.recrollaudio'* 2>/dev/null || true; "
-        "pkgutil --pkgs 2>/dev/null | grep -i recroll | while read -r p; do pkgutil --forget \"$p\" 2>/dev/null || true; done; "
-        "killall -9 AudioComponentRegistrar 2>/dev/null || true; "
-        "exit 0";
+    // 2. Write standalone script to /tmp to avoid shell quotation issues inside AppleScript
+    juce::File scriptFile("/tmp/recroll_uninstall.sh");
+    juce::String scriptContent =
+        "#!/bin/bash\n"
+        "rm -rf '/Applications/RecRoll.app' 2>/dev/null || true\n"
+        "rm -rf '/Library/Audio/Plug-Ins/VST3/RecRoll.vst3' 2>/dev/null || true\n"
+        "rm -rf '/Library/Audio/Plug-Ins/CLAP/RecRoll.clap' 2>/dev/null || true\n"
+        "rm -rf '/Library/Audio/Plug-Ins/Components/RecRoll.component' 2>/dev/null || true\n"
+        "rm -rf '/Library/Application Support/RecRoll' 2>/dev/null || true\n"
+        "rm -rf /Library/LaunchAgents/com.recrollaudio.* 2>/dev/null || true\n"
+        "rm -rf /Library/LaunchDaemons/com.recrollaudio.* 2>/dev/null || true\n"
+        "rm -rf /var/db/receipts/com.recrollaudio.* 2>/dev/null || true\n"
+        "pkgutil --forget com.recrollaudio.recroll 2>/dev/null || true\n"
+        "pkgutil --forget com.recrollaudio.recroll.vst3 2>/dev/null || true\n"
+        "pkgutil --forget com.recrollaudio.recroll.clap 2>/dev/null || true\n"
+        "pkgutil --forget com.recrollaudio.recroll.au 2>/dev/null || true\n"
+        "pkgutil --forget com.recrollaudio.recroll.app 2>/dev/null || true\n"
+        "killall -9 AudioComponentRegistrar 2>/dev/null || true\n"
+        "rm -f /tmp/recroll_uninstall.sh 2>/dev/null || true\n"
+        "exit 0\n";
 
-    juce::String escapedCommands = systemCommands.replace("\\", "\\\\").replace("\"", "\\\"");
+    scriptFile.replaceWithText(scriptContent);
+    scriptFile.setExecutePermission(true);
+
     juce::String appleScriptSource =
-        "do shell script \"" + escapedCommands + "\" with administrator privileges";
+        "do shell script \"bash /tmp/recroll_uninstall.sh\" with administrator privileges";
 
     bool success = false;
 
@@ -128,9 +137,9 @@ bool UninstallerHelper::executeMacOSUninstall()
         if (errorInfo != nil)
         {
             NSNumber* errNum = [errorInfo objectForKey:NSAppleScriptErrorNumber];
-            // If user clicked Cancel in the authentication prompt
             if (errNum != nil && [errNum intValue] == -128)
             {
+                scriptFile.deleteFile();
                 return false;
             }
         }
@@ -156,6 +165,7 @@ bool UninstallerHelper::executeMacOSUninstall()
         }
     }
 
+    scriptFile.deleteFile();
     return success;
 }
 #endif

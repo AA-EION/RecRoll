@@ -257,10 +257,15 @@ void WaveformComponent::paint(juce::Graphics& g)
 
     if (pixelWidth > 0)
     {
+        // Zero-crossing center line (drawn behind waveform)
+        g.setColour(juce::Colour(0x22ffffff));
+        g.drawHorizontalLine(static_cast<int>(centerY), bounds.getX(), bounds.getRight());
+
+        // Waveform rendering from Peak cache
         buffer.getVisiblePeaks(peakCache, pixelWidth);
 
-        // 1. Draw glowing background filled envelope
-        g.setColour(juce::Colour(0x3300e5ff));
+        // 1. Draw subtle neon glow halo around bars
+        g.setColour(juce::Colour(0x4000e5ff));
         for (int x = 0; x < pixelWidth && x < static_cast<int>(peakCache.size()); ++x)
         {
             float px = bounds.getX() + static_cast<float>(x);
@@ -271,14 +276,19 @@ void WaveformComponent::paint(juce::Graphics& g)
             if (maxMag > 0.0001f)
             {
                 hasAudioData = true;
-                float peakPositive = std::max({ 0.0f, p.maxL, p.maxR });
-                float peakNegative = std::min({ 0.0f, p.minL, p.minR });
+                float peakPositive = std::clamp(std::max({ 0.0f, p.maxL, p.maxR }), 0.0f, 1.0f);
+                float peakNegative = std::clamp(std::min({ 0.0f, p.minL, p.minR }), -1.0f, 0.0f);
 
                 float yTop = centerY - (peakPositive * halfHeight * 0.95f);
                 float yBottom = centerY - (peakNegative * halfHeight * 0.95f);
-                float height = std::max(2.0f, yBottom - yTop);
+                float height = yBottom - yTop;
+                if (height < 2.0f)
+                {
+                    yTop = centerY - 1.0f;
+                    height = 2.0f;
+                }
 
-                g.fillRect(juce::Rectangle<float>(px, yTop, 1.0f, height));
+                g.fillRect(juce::Rectangle<float>(px - 0.5f, yTop - 1.0f, 2.0f, height + 2.0f));
             }
         }
 
@@ -293,12 +303,17 @@ void WaveformComponent::paint(juce::Graphics& g)
 
             if (maxMag > 0.0001f)
             {
-                float peakPositive = std::max({ 0.0f, p.maxL, p.maxR });
-                float peakNegative = std::min({ 0.0f, p.minL, p.minR });
+                float peakPositive = std::clamp(std::max({ 0.0f, p.maxL, p.maxR }), 0.0f, 1.0f);
+                float peakNegative = std::clamp(std::min({ 0.0f, p.minL, p.minR }), -1.0f, 0.0f);
 
                 float yTop = centerY - (peakPositive * halfHeight * 0.95f);
                 float yBottom = centerY - (peakNegative * halfHeight * 0.95f);
-                float height = std::max(2.0f, yBottom - yTop);
+                float height = yBottom - yTop;
+                if (height < 2.0f)
+                {
+                    yTop = centerY - 1.0f;
+                    height = 2.0f;
+                }
 
                 g.fillRect(juce::Rectangle<float>(px, yTop, 1.0f, height));
             }
@@ -313,10 +328,6 @@ void WaveformComponent::paint(juce::Graphics& g)
         g.drawText("Waiting for incoming audio... (Play audio in DAW track or feed sound into input)",
                    bounds, juce::Justification::centred, false);
     }
-
-    // Zero-crossing center line
-    g.setColour(juce::Colour(0x33ffffff));
-    g.drawHorizontalLine(static_cast<int>(centerY), bounds.getX(), bounds.getRight());
 
     // Selection Overlay
     float selStartX = normalizedToX(selectionStartNormalized);
@@ -358,7 +369,8 @@ void WaveformComponent::paint(juce::Graphics& g)
     g.drawRect(bounds, 1.0f);
 
     // --- Timeline Ruler Rendering ---
-    g.fillAll(juce::Colour(0xff0e0f14)); // ruler background
+    g.setColour(juce::Colour(0xff0e0f14));
+    g.fillRect(timelineBounds);
     g.setFont(juce::FontOptions(11.0f));
     g.setColour(juce::Colour(0x88ffffff));
 

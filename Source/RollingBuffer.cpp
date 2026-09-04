@@ -210,7 +210,7 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
 
         for (int64_t offset = peakOffsetStart; offset >= peakOffsetEnd; --offset)
         {
-            if (offset > availablePeaks)
+            if (offset >= availablePeaks)
                 continue;
 
             int64_t idx = (curPeakHead - 1) - offset;
@@ -233,6 +233,13 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
         }
 
         outPeaks[static_cast<size_t>(bucketIdx)] = bucketPeak;
+    }
+
+    // If audio is actively arriving but hasn't completed a full SAMPLES_PER_PEAK bucket yet,
+    // ensure the newest pixel bucket immediately reflects the current live audio peak!
+    if (availablePeaks == 0 && totalWritten > 0 && targetBucketCount > 0)
+    {
+        outPeaks.back() = currentBucketPeak;
     }
 }
 
