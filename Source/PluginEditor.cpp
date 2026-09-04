@@ -302,6 +302,11 @@ bool RecRollAudioProcessorEditor::keyPressed(const juce::KeyPress& key)
         waveform.selectAll();
         return true;
     }
+    if (key.isKeyCode(juce::KeyPress::escapeKey))
+    {
+        waveform.clearSelection();
+        return true;
+    }
     return false;
 }
 

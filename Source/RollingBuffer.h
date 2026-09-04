@@ -59,6 +59,12 @@ public:
      */
     int readSlice(juce::AudioBuffer<float>& destBuffer, int64_t startSampleOffsetFromNow, int numSamplesToRead) const;
 
+    /**
+     * Reads a slice from the circular buffer into destBuffer starting at an absolute timeline position.
+     * absoluteStartSample: 0 is timeline start, up to totalSamplesWritten.
+     */
+    int readSliceAbsolute(juce::AudioBuffer<float>& destBuffer, int64_t absoluteStartSample, int numSamplesToRead) const;
+
     /** Returns current sample rate. */
     double getSampleRate() const noexcept { return currentSampleRate; }
 
@@ -87,11 +93,13 @@ public:
      * Peak Cache Access:
      * Fills an array of PeakData corresponding to the visible time window.
      * targetBucketCount: how many horizontal pixels/buckets to render.
+     * endSamplePosition: absolute timeline sample for the right edge (-1 = live write head).
      */
-    void getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetBucketCount) const;
+    void getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetBucketCount, int64_t endSamplePosition = -1) const;
 
     // --- Audition Playback Engine ---
     void startAudition(int64_t startSampleOffsetFromNow, int64_t numSamples);
+    void startAuditionAbsolute(int64_t absoluteStartSample, int64_t numSamples);
     void stopAudition();
     bool isAuditioning() const noexcept { return auditionPlaying.load(std::memory_order_relaxed); }
     double getAuditionProgress() const;

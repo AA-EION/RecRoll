@@ -2,14 +2,14 @@ name: Build and Release RecRoll
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "feature/*", "feature/**" ]
     tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Publish this build as this tag (e.g. v1.0.0). Leave empty to build without releasing."
+        description: "Publish this build as this tag (e.g. v1.1.0). Leave empty to build without releasing."
         required: false
         default: ""
       replace_existing:

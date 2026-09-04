@@ -2,7 +2,7 @@
 ; Target: Windows 10 and Windows 11 (Intel/AMD x64 and ARM64 Snapdragon)
 
 #define MyAppName "RecRoll"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "EION Studios"
 #define MyAppURL "https://eionstudios.com"
 #define MyAppSupportURL "https://github.com/AA-EION/RecRoll"

@@ -44,6 +44,54 @@ float WaveformComponent::normalizedToX(double norm) const
     return waveformBounds.getX() + static_cast<float>(norm * waveformBounds.getWidth());
 }
 
+void WaveformComponent::freezeView()
+{
+    if (!isViewFrozen)
+    {
+        isViewFrozen = true;
+        frozenEndSample = buffer.getTotalSamplesWritten();
+        repaint();
+    }
+}
+
+void WaveformComponent::unfreezeView()
+{
+    if (isViewFrozen)
+    {
+        isViewFrozen = false;
+        frozenEndSample = -1;
+        repaint();
+    }
+}
+
+void WaveformComponent::onDragOperationEnded()
+{
+    clearSelection();
+    unfreezeView();
+    currentDragMode = DragMode::None;
+    hasInitiatedExternalDrag = false;
+    repaint();
+}
+
+void WaveformComponent::mouseEnter(const juce::MouseEvent&)
+{
+    freezeView();
+}
+
+void WaveformComponent::mouseMove(const juce::MouseEvent&)
+{
+    freezeView();
+}
+
+void WaveformComponent::mouseExit(const juce::MouseEvent&)
+{
+    // Resume scrolling if no active selection and not currently dragging
+    if (!hasCustomSelection && currentDragMode == DragMode::None)
+    {
+        unfreezeView();
+    }
+}
+
 void WaveformComponent::selectAll()
 {
     selectionStartNormalized = 0.0;
@@ -56,6 +104,10 @@ void WaveformComponent::selectAll()
 void WaveformComponent::clearSelection()
 {
     selectAll();
+    if (!isMouseOver(true))
+    {
+        unfreezeView();
+    }
 }
 
 void WaveformComponent::updateSelectionReadout()
@@ -84,18 +136,15 @@ void WaveformComponent::toggleAudition()
     const double visSec = buffer.getVisibleDurationSeconds();
     const double sr = buffer.getSampleRate();
 
-    // Calculate sample offsets
-    // Start of selection is at selectionStartNormalized
-    // Distance from write head (Now / 1.0) is (1.0 - selectionStartNormalized) * visSec
-    double startOffsetSec = (1.0 - selectionStartNormalized) * visSec;
-    double durationSec    = (selectionEndNormalized - selectionStartNormalized) * visSec;
+    const int64_t refSample = isViewFrozen ? frozenEndSample : buffer.getTotalSamplesWritten();
 
-    int64_t startSampleOffset = static_cast<int64_t>(startOffsetSec * sr);
-    int64_t numSamples        = static_cast<int64_t>(durationSec * sr);
+    // Start of selection is at selectionStartNormalized
+    int64_t startSample = refSample - static_cast<int64_t>((1.0 - selectionStartNormalized) * (visSec * sr));
+    int64_t numSamples  = static_cast<int64_t>((selectionEndNormalized - selectionStartNormalized) * (visSec * sr));
 
     if (numSamples > 100)
     {
-        buffer.startAudition(startSampleOffset, numSamples);
+        buffer.startAuditionAbsolute(startSample, numSamples);
     }
 }
 
@@ -104,27 +153,41 @@ void WaveformComponent::startDawDragOperation()
     const double visSec = buffer.getVisibleDurationSeconds();
     const double sr = buffer.getSampleRate();
 
-    double startOffsetSec = (1.0 - selectionStartNormalized) * visSec;
-    double durationSec    = (selectionEndNormalized - selectionStartNormalized) * visSec;
+    const int64_t refSample = isViewFrozen ? frozenEndSample : buffer.getTotalSamplesWritten();
 
-    int64_t startSampleOffset = static_cast<int64_t>(startOffsetSec * sr);
-    int64_t numSamples        = static_cast<int64_t>(durationSec * sr);
+    int64_t startSample = refSample - static_cast<int64_t>((1.0 - selectionStartNormalized) * (visSec * sr));
+    int64_t numSamples  = static_cast<int64_t>((selectionEndNormalized - selectionStartNormalized) * (visSec * sr));
 
     if (numSamples <= 0)
         numSamples = static_cast<int64_t>(sr * 1.0);
 
-    auto tempWav = AudioExportHelper::exportSliceToTempWav(buffer, startSampleOffset, numSamples, normalizeExport);
+    auto tempWav = AudioExportHelper::exportAbsoluteSliceToTempWav(buffer, startSample, numSamples, normalizeExport);
 
     if (tempWav.existsAsFile())
     {
         juce::StringArray files;
         files.add(tempWav.getFullPathName());
-        performExternalDragDropOfFiles(files, false, this);
+
+        bool dragStarted = performExternalDragDropOfFiles(files, false, this,
+            [safeThis = juce::Component::SafePointer<WaveformComponent>(this)]()
+            {
+                if (safeThis != nullptr)
+                {
+                    safeThis->onDragOperationEnded();
+                }
+            });
+
+        if (!dragStarted)
+        {
+            onDragOperationEnded();
+        }
     }
 }
 
 void WaveformComponent::mouseDown(const juce::MouseEvent& e)
 {
+    freezeView();
+
     dragStartPos = e.getPosition();
     hasInitiatedExternalDrag = false;
 
@@ -204,6 +267,10 @@ void WaveformComponent::mouseUp(const juce::MouseEvent&)
     if (hasCustomSelection && (selectionEndNormalized - selectionStartNormalized < 0.005))
     {
         selectAll();
+        if (!isMouseOver(true))
+        {
+            unfreezeView();
+        }
     }
 
     currentDragMode = DragMode::None;
@@ -215,6 +282,10 @@ void WaveformComponent::mouseUp(const juce::MouseEvent&)
 void WaveformComponent::mouseDoubleClick(const juce::MouseEvent&)
 {
     selectAll();
+    if (!isMouseOver(true))
+    {
+        unfreezeView();
+    }
 }
 
 void WaveformComponent::paint(juce::Graphics& g)
@@ -261,8 +332,9 @@ void WaveformComponent::paint(juce::Graphics& g)
         g.setColour(juce::Colour(0x22ffffff));
         g.drawHorizontalLine(static_cast<int>(centerY), bounds.getX(), bounds.getRight());
 
-        // Waveform rendering from Peak cache
-        buffer.getVisiblePeaks(peakCache, pixelWidth);
+        // Waveform rendering from Peak cache (pinned to frozen anchor if view is frozen)
+        int64_t refEnd = isViewFrozen ? frozenEndSample : -1;
+        buffer.getVisiblePeaks(peakCache, pixelWidth, refEnd);
 
         // 1. Draw subtle neon glow halo around bars
         g.setColour(juce::Colour(0x4000e5ff));
@@ -360,8 +432,15 @@ void WaveformComponent::paint(juce::Graphics& g)
         g.fillEllipse(playheadX - 4.0f, bounds.getY() + 2.0f, 8.0f, 8.0f);
     }
 
-    // "NOW" Head indicator (Right edge)
-    g.setColour(buffer.isRecording() ? juce::Colour(0xffff1744) : juce::Colour(0xff757575));
+    // "NOW" / Frozen right edge indicator
+    if (isViewFrozen)
+    {
+        g.setColour(juce::Colour(0xff00e5ff)); // Cyan line indicating frozen view
+    }
+    else
+    {
+        g.setColour(buffer.isRecording() ? juce::Colour(0xffff1744) : juce::Colour(0xff757575));
+    }
     g.drawVerticalLine(static_cast<int>(bounds.getRight() - 1.0f), bounds.getY(), bounds.getBottom());
 
     // Outer border

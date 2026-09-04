@@ -126,27 +126,35 @@ void RollingBuffer::write(const juce::AudioBuffer<float>& inputBuffer)
     totalSamplesWritten.fetch_add(numSamples, std::memory_order_release);
 }
 
-int RollingBuffer::readSlice(juce::AudioBuffer<float>& destBuffer, int64_t startSampleOffsetFromNow, int numSamplesToRead) const
+int RollingBuffer::readSliceAbsolute(juce::AudioBuffer<float>& destBuffer, int64_t absoluteStartSample, int numSamplesToRead) const
 {
     if (bufferCapacitySamples <= 0 || numSamplesToRead <= 0)
         return 0;
 
-    const int64_t head = writeHead.load(std::memory_order_acquire);
     const int64_t totalWritten = totalSamplesWritten.load(std::memory_order_acquire);
+    if (totalWritten <= 0)
+        return 0;
 
-    // Limit offset to available history
-    int64_t maxAvailable = std::min(totalWritten, bufferCapacitySamples);
-    if (startSampleOffsetFromNow > maxAvailable)
-        startSampleOffsetFromNow = maxAvailable;
+    // The earliest sample still retained in circular buffer history
+    const int64_t earliestSample = std::max<int64_t>(0, totalWritten - bufferCapacitySamples);
 
-    if (numSamplesToRead > startSampleOffsetFromNow)
-        numSamplesToRead = static_cast<int>(startSampleOffsetFromNow);
+    if (absoluteStartSample < earliestSample)
+    {
+        int64_t underflow = earliestSample - absoluteStartSample;
+        absoluteStartSample = earliestSample;
+        numSamplesToRead -= static_cast<int>(underflow);
+    }
+
+    if (absoluteStartSample >= totalWritten || numSamplesToRead <= 0)
+        return 0;
+
+    if (absoluteStartSample + numSamplesToRead > totalWritten)
+        numSamplesToRead = static_cast<int>(totalWritten - absoluteStartSample);
 
     if (numSamplesToRead <= 0)
         return 0;
 
-    // The oldest sample of the slice in circular buffer
-    int64_t readStart = head - startSampleOffsetFromNow;
+    int64_t readStart = absoluteStartSample % bufferCapacitySamples;
     while (readStart < 0)
         readStart += bufferCapacitySamples;
 
@@ -171,7 +179,14 @@ int RollingBuffer::readSlice(juce::AudioBuffer<float>& destBuffer, int64_t start
     return numSamplesToRead;
 }
 
-void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetBucketCount) const
+int RollingBuffer::readSlice(juce::AudioBuffer<float>& destBuffer, int64_t startSampleOffsetFromNow, int numSamplesToRead) const
+{
+    const int64_t totalWritten = totalSamplesWritten.load(std::memory_order_acquire);
+    int64_t absoluteStart = totalWritten - startSampleOffsetFromNow;
+    return readSliceAbsolute(destBuffer, absoluteStart, numSamplesToRead);
+}
+
+void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetBucketCount, int64_t endSamplePosition) const
 {
     if (targetBucketCount <= 0 || peakCapacity <= 0)
         return;
@@ -192,15 +207,21 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
     // Oldest visible peak position
     const int64_t peaksToDisplay = std::min(totalVisiblePeaks, peakCapacity);
 
+    int64_t baseOffset = 0;
+    if (endSamplePosition >= 0 && endSamplePosition <= totalWritten)
+    {
+        baseOffset = (totalWritten - endSamplePosition) / SAMPLES_PER_PEAK;
+    }
+
     for (int bucketIdx = 0; bucketIdx < targetBucketCount; ++bucketIdx)
     {
         // Calculate the slice of peaks that map to this display bucket
         double t0 = static_cast<double>(bucketIdx) / targetBucketCount;
         double t1 = static_cast<double>(bucketIdx + 1) / targetBucketCount;
 
-        // t0 = 0 is oldest (left), t0 = 1 is newest (right, now)
-        int64_t peakOffsetStart = static_cast<int64_t>((1.0 - t0) * peaksToDisplay);
-        int64_t peakOffsetEnd   = static_cast<int64_t>((1.0 - t1) * peaksToDisplay);
+        // t0 = 0 is oldest (left), t0 = 1 is newest (right, now or frozen anchor)
+        int64_t peakOffsetStart = baseOffset + static_cast<int64_t>((1.0 - t0) * peaksToDisplay);
+        int64_t peakOffsetEnd   = baseOffset + static_cast<int64_t>((1.0 - t1) * peaksToDisplay);
 
         if (peakOffsetStart < peakOffsetEnd)
             std::swap(peakOffsetStart, peakOffsetEnd);
@@ -210,7 +231,7 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
 
         for (int64_t offset = peakOffsetStart; offset >= peakOffsetEnd; --offset)
         {
-            if (offset >= availablePeaks)
+            if (offset >= availablePeaks || offset < 0)
                 continue;
 
             int64_t idx = (curPeakHead - 1) - offset;
@@ -236,8 +257,8 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
     }
 
     // If audio is actively arriving but hasn't completed a full SAMPLES_PER_PEAK bucket yet,
-    // ensure the newest pixel bucket immediately reflects the current live audio peak!
-    if (availablePeaks == 0 && totalWritten > 0 && targetBucketCount > 0)
+    // ensure the newest pixel bucket immediately reflects the current live audio peak (live view only)!
+    if (baseOffset == 0 && availablePeaks == 0 && totalWritten > 0 && targetBucketCount > 0)
     {
         outPeaks.back() = currentBucketPeak;
     }
@@ -245,20 +266,24 @@ void RollingBuffer::getVisiblePeaks(std::vector<PeakData>& outPeaks, int targetB
 
 // --- Audition Playback Engine ---
 
-void RollingBuffer::startAudition(int64_t startSampleOffsetFromNow, int64_t numSamples)
+void RollingBuffer::startAuditionAbsolute(int64_t absoluteStartSample, int64_t numSamples)
 {
     if (numSamples <= 0)
         return;
 
+    auditionAbsoluteStart.store(absoluteStartSample, std::memory_order_relaxed);
+    auditionLengthSamples.store(numSamples, std::memory_order_relaxed);
+    auditionCurrentOffset.store(0, std::memory_order_relaxed);
+    auditionPlaying.store(true, std::memory_order_release);
+}
+
+void RollingBuffer::startAudition(int64_t startSampleOffsetFromNow, int64_t numSamples)
+{
     // Pin the selection to the absolute timeline once, here. Everything after
     // this reads from a fixed point rather than chasing a moving write head.
     const int64_t absoluteStart = totalSamplesWritten.load(std::memory_order_acquire)
                                 - startSampleOffsetFromNow;
-
-    auditionAbsoluteStart.store(absoluteStart, std::memory_order_relaxed);
-    auditionLengthSamples.store(numSamples, std::memory_order_relaxed);
-    auditionCurrentOffset.store(0, std::memory_order_relaxed);
-    auditionPlaying.store(true, std::memory_order_release);
+    startAuditionAbsolute(absoluteStart, numSamples);
 }
 
 void RollingBuffer::stopAudition()

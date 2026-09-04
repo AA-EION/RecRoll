@@ -10,7 +10,7 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BUILD_DIR="${ROOT_DIR}/build"
 DIST_DIR="${ROOT_DIR}/dist"
 
-VERSION="1.0.0"
+VERSION="1.1.0"
 IDENTIFIER="com.eionstudios.recroll"
 
 echo "=============================================="
