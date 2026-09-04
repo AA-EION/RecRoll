@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+BUNDLE_ID="com.eionstudios.recroll"
+
 echo "=============================================="
 echo " RecRoll Complete Uninstaller for macOS       "
 echo "=============================================="
@@ -30,25 +32,23 @@ for USER_DIR in /Users/*; do
         rm -rf "${USER_DIR}/Library/Audio/Plug-Ins/CLAP/RecRoll.clap"
         rm -rf "${USER_DIR}/Library/Audio/Plug-Ins/Components/RecRoll.component"
         rm -rf "${USER_DIR}/Library/Application Support/RecRoll"
-        rm -rf "${USER_DIR}/Library/Preferences/com.recrollaudio.*"
-        rm -rf "${USER_DIR}/Library/Caches/com.recrollaudio.*"
-        rm -rf "${USER_DIR}/Library/Saved Application State/com.recrollaudio.*"
-        rm -rf "${USER_DIR}/Library/LaunchAgents/com.recrollaudio.*"
+        rm -rf "${USER_DIR}/Library/Preferences/${BUNDLE_ID}".*
+        rm -rf "${USER_DIR}/Library/Caches/${BUNDLE_ID}".*
+        rm -rf "${USER_DIR}/Library/Saved Application State/${BUNDLE_ID}".*
+        rm -rf "${USER_DIR}/Library/LaunchAgents/${BUNDLE_ID}".*
     fi
 done
 
 echo "[*] Removing system support files, caches, and launch agents..."
 rm -rf "/Library/Application Support/RecRoll"
-rm -rf "/Library/LaunchAgents/com.recrollaudio.*"
-rm -rf "/Library/LaunchDaemons/com.recrollaudio.*"
+rm -rf "/Library/LaunchAgents/${BUNDLE_ID}".*
+rm -rf "/Library/LaunchDaemons/${BUNDLE_ID}".*
 
 echo "[*] Forgetting package receipts..."
-pkgutil --forget com.recrollaudio.recroll 2>/dev/null || true
-pkgutil --forget com.recrollaudio.recroll.vst3 2>/dev/null || true
-pkgutil --forget com.recrollaudio.recroll.clap 2>/dev/null || true
-pkgutil --forget com.recrollaudio.recroll.au 2>/dev/null || true
-pkgutil --forget com.recrollaudio.recroll.app 2>/dev/null || true
-rm -f /var/db/receipts/com.recrollaudio.* 2>/dev/null || true
+for SUFFIX in "" ".vst3" ".clap" ".au" ".app"; do
+    pkgutil --forget "${BUNDLE_ID}${SUFFIX}" 2>/dev/null || true
+done
+rm -f /var/db/receipts/"${BUNDLE_ID}".* 2>/dev/null || true
 
 echo "[*] Refreshing macOS AudioComponentRegistrar cache..."
 killall -9 AudioComponentRegistrar 2>/dev/null || true

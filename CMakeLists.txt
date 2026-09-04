@@ -47,13 +47,23 @@ if (APPLE)
     list(APPEND RECROLL_FORMATS AU)
 endif()
 
+# RecRoll is a product of EION STUDIOS, engineered by ISSEN Software Group.
+# COMPANY_NAME is what a DAW prints in its plugin browser's Manufacturer column,
+# so it carries the studio name verbatim; PLUGIN_MANUFACTURER_CODE is the
+# four-character AU/VST identity that goes with it.
 juce_add_plugin(RecRoll
-    COMPANY_NAME "RecRollAudio"
-    BUNDLE_ID "com.recrollaudio.recroll"
-    PLUGIN_MANUFACTURER_CODE Rcll
+    COMPANY_NAME "EION Studios"
+    COMPANY_WEBSITE "https://eionstudios.com"
+    COMPANY_EMAIL "contactus@eionstudios.com"
+    BUNDLE_ID "com.eionstudios.recroll"
+    PLUGIN_MANUFACTURER_CODE Eion
     PLUGIN_CODE Rcrb
     FORMATS ${RECROLL_FORMATS}
     PRODUCT_NAME "RecRoll"
+    DESCRIPTION "Rolling sampler and retrospective recorder"
+    ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/Resources/RecRoll_Icon_1024.png"
+    ICON_SMALL "${CMAKE_CURRENT_SOURCE_DIR}/Resources/RecRoll_Icon_128.png"
+    VST3_CATEGORIES "Fx" "Tools"
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE
@@ -63,13 +73,21 @@ juce_add_plugin(RecRoll
     MICROPHONE_PERMISSION_TEXT "RecRoll requires audio input access to capture and record rolling audio."
 )
 
-# Configure CLAP format target
-if (TARGET clap-juce-extensions)
+# Configure CLAP format target.
+# FetchContent names this dependency "clap-juce-extensions", but the CMake target
+# it defines is "clap_juce_extensions" with underscores. Testing the hyphenated
+# name silently skipped this block, so no RecRoll_CLAP target was ever created
+# and the CLAP artefact the installers ask for never got built.
+if (TARGET clap_juce_extensions)
     clap_juce_extensions_plugin(
         TARGET RecRoll
-        CLAP_ID "com.recrollaudio.recroll"
+        CLAP_ID "com.eionstudios.recroll"
+        CLAP_MANUAL_URL "https://github.com/AA-EION/RecRoll"
+        CLAP_SUPPORT_URL "https://github.com/AA-EION/RecRoll/issues"
         CLAP_FEATURES "audio-effect" "utility" "sampler"
     )
+else()
+    message(WARNING "clap_juce_extensions target not found - the CLAP format will not be built.")
 endif()
 
 target_sources(RecRoll PRIVATE
@@ -85,6 +103,18 @@ target_sources(RecRoll PRIVATE
     Source/AudioExportHelper.cpp
     Source/UninstallerHelper.h
     Source/UninstallerHelper.cpp
+    Source/AboutComponent.h
+    Source/AboutComponent.cpp
+)
+
+# Brand and application artwork compiled into every format, so the About panel
+# renders identically in the standalone app and inside a host.
+juce_add_binary_data(RecRollBrandAssets
+    HEADER_NAME BrandAssets.h
+    NAMESPACE BrandAssets
+    SOURCES
+        Resources/RecRoll_Icon.svg
+        Resources/brand/EION_Simbolo_Blanco.svg
 )
 
 target_compile_definitions(RecRoll PUBLIC
@@ -95,6 +125,7 @@ target_compile_definitions(RecRoll PUBLIC
 )
 
 target_link_libraries(RecRoll PRIVATE
+    RecRollBrandAssets
     juce::juce_audio_utils
     juce::juce_audio_processors
     juce::juce_gui_basics

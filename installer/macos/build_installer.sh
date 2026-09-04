@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# macOS Universal Package & DMG Builder for RecRoll
+# macOS Universal Package & DMG Builder for RecRoll - a product of EION STUDIOS
 # Generates signed PKG and DMG with ad-hoc signing for Gatekeeper compatibility.
 # Compatible with macOS 11.0 Big Sur through macOS 26 Tahoe+
 
@@ -11,7 +11,7 @@ BUILD_DIR="${ROOT_DIR}/build"
 DIST_DIR="${ROOT_DIR}/dist"
 
 VERSION="1.0.0"
-IDENTIFIER="com.recrollaudio.recroll"
+IDENTIFIER="com.eionstudios.recroll"
 
 echo "=============================================="
 echo " Building RecRoll macOS Universal PKG & DMG   "
@@ -71,20 +71,37 @@ PKG_BUILD_TMP="${STAGE_DIR}/pkgs"
 mkdir -p "${PKG_BUILD_TMP}"
 
 echo "[*] Building individual component packages..."
-pkgbuild --root "${VST3_STAGE}" --identifier "${IDENTIFIER}.vst3" --version "${VERSION}" --install-location "/" "${PKG_BUILD_TMP}/RecRoll-VST3.pkg"
-pkgbuild --root "${CLAP_STAGE}" --identifier "${IDENTIFIER}.clap" --version "${VERSION}" --install-location "/" "${PKG_BUILD_TMP}/RecRoll-CLAP.pkg"
-pkgbuild --root "${AU_STAGE}" --identifier "${IDENTIFIER}.au" --version "${VERSION}" --install-location "/" "${PKG_BUILD_TMP}/RecRoll-AU.pkg"
-pkgbuild --root "${APP_STAGE}" --identifier "${IDENTIFIER}.app" --version "${VERSION}" --install-location "/" "${PKG_BUILD_TMP}/RecRoll-App.pkg"
+
+# Only package the formats that actually got built. Packaging an empty staging
+# root produces a component that installs nothing, which is how a missing
+# artefact used to slip into a release unnoticed.
+SYNTH_ARGS=()
+
+build_component() {
+    local stage="$1" suffix="$2" pkgname="$3" payload="$4"
+    if [ ! -e "${payload}" ]; then
+        echo "[!] Skipping ${pkgname}: no artefact was built."
+        return
+    fi
+    pkgbuild --root "${stage}" --identifier "${IDENTIFIER}.${suffix}" --version "${VERSION}" \
+             --install-location "/" "${PKG_BUILD_TMP}/${pkgname}"
+    SYNTH_ARGS+=(--package "${PKG_BUILD_TMP}/${pkgname}")
+}
+
+build_component "${VST3_STAGE}" "vst3" "RecRoll-VST3.pkg" "${VST3_STAGE}/Library/Audio/Plug-Ins/VST3/RecRoll.vst3"
+build_component "${CLAP_STAGE}" "clap" "RecRoll-CLAP.pkg" "${CLAP_STAGE}/Library/Audio/Plug-Ins/CLAP/RecRoll.clap"
+build_component "${AU_STAGE}"   "au"   "RecRoll-AU.pkg"   "${AU_STAGE}/Library/Audio/Plug-Ins/Components/RecRoll.component"
+build_component "${APP_STAGE}"  "app"  "RecRoll-App.pkg"  "${APP_STAGE}/Applications/RecRoll.app"
+
+if [ ${#SYNTH_ARGS[@]} -eq 0 ]; then
+    echo "[x] No RecRoll artefacts were found in ${BUILD_DIR}. Did the build run?" >&2
+    exit 1
+fi
 
 # 3. Synthesize Product Distribution PKG
 DIST_XML="${STAGE_DIR}/distribution.xml"
 echo "[*] Synthesizing distribution blueprint..."
-productbuild --synthesize \
-  --package "${PKG_BUILD_TMP}/RecRoll-VST3.pkg" \
-  --package "${PKG_BUILD_TMP}/RecRoll-CLAP.pkg" \
-  --package "${PKG_BUILD_TMP}/RecRoll-AU.pkg" \
-  --package "${PKG_BUILD_TMP}/RecRoll-App.pkg" \
-  "${DIST_XML}"
+productbuild --synthesize "${SYNTH_ARGS[@]}" "${DIST_XML}"
 
 FINAL_PKG="${DIST_DIR}/RecRoll-macOS-Universal-Installer.pkg"
 echo "[*] Generating final product package..."

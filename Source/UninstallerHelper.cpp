@@ -95,8 +95,8 @@ bool UninstallerHelper::executeMacOSUninstall()
     userHome.getChildFile("Library/Audio/Plug-Ins/CLAP/RecRoll.clap").deleteRecursively();
     userHome.getChildFile("Library/Audio/Plug-Ins/Components/RecRoll.component").deleteRecursively();
     userHome.getChildFile("Library/Application Support/RecRoll").deleteRecursively();
-    userHome.getChildFile("Library/Preferences/com.recrollaudio.recroll.plist").deleteFile();
-    userHome.getChildFile("Library/Saved Application State/com.recrollaudio.recroll.savedState").deleteRecursively();
+    userHome.getChildFile("Library/Preferences/com.eionstudios.recroll.plist").deleteFile();
+    userHome.getChildFile("Library/Saved Application State/com.eionstudios.recroll.savedState").deleteRecursively();
 
     // 2. Build privileged shell command for system files, launch agents, and package receipts
     juce::String systemCommands =
@@ -105,9 +105,9 @@ bool UninstallerHelper::executeMacOSUninstall()
         "'/Library/Audio/Plug-Ins/CLAP/RecRoll.clap' "
         "'/Library/Audio/Plug-Ins/Components/RecRoll.component' "
         "'/Library/Application Support/RecRoll' "
-        "'/Library/LaunchAgents/com.recrollaudio'* "
-        "'/Library/LaunchDaemons/com.recrollaudio'* "
-        "'/var/db/receipts/com.recrollaudio'* 2>/dev/null || true; "
+        "'/Library/LaunchAgents/com.eionstudios.recroll'* "
+        "'/Library/LaunchDaemons/com.eionstudios.recroll'* "
+        "'/var/db/receipts/com.eionstudios.recroll'* 2>/dev/null || true; "
         "pkgutil --pkgs 2>/dev/null | grep -i recroll | while read -r p; do pkgutil --forget \"$p\" 2>/dev/null || true; done; "
         "killall -9 AudioComponentRegistrar 2>/dev/null || true; "
         "exit 0";

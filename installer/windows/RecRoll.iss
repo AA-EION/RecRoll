@@ -3,18 +3,19 @@
 
 #define MyAppName "RecRoll"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "RecRoll Audio"
-#define MyAppURL "https://github.com/recrollaudio/recroll"
+#define MyAppPublisher "EION Studios"
+#define MyAppURL "https://eionstudios.com"
+#define MyAppSupportURL "https://github.com/AA-EION/RecRoll"
 #define MyAppExeName "RecRoll.exe"
 
 [Setup]
-AppId={{D37E88A1-4F43-4C90-8E1A-78229F84F8AA}
+AppId={{E1CE670E-2A2F-5F0B-B948-D70441B507AA}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppSupportURL={#MyAppSupportURL}
+AppUpdatesURL={#MyAppSupportURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
@@ -24,6 +25,7 @@ OutputBaseFilename=RecRoll-Windows-Universal-Installer
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\..\Resources\RecRoll_Icon.ico
 ArchitecturesInstallIn64BitMode=x64 arm64
 MinVersion=10.0
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -50,7 +52,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; VST3
 Source: "..\..\build\bin\x64\RecRoll.vst3\*"; DestDir: "{commoncf}\VST3\RecRoll.vst3"; Check: IsX64 and not IsArm64; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 ; CLAP
-Source: "..\..\build\bin\x64\RecRoll.clap"; DestDir: "{commoncf}\CLAP"; Check: IsX64 and not IsArm64; Components: clap; Flags: ignoreversion
+Source: "..\..\build\bin\x64\RecRoll.clap"; DestDir: "{commoncf}\CLAP"; Check: IsX64 and not IsArm64; Components: clap; Flags: ignoreversion skipifsourcedoesntexist
 ; Standalone
 Source: "..\..\build\bin\x64\RecRoll.exe"; DestDir: "{app}"; Check: IsX64 and not IsArm64; Components: standalone; Flags: ignoreversion
 
@@ -58,7 +60,7 @@ Source: "..\..\build\bin\x64\RecRoll.exe"; DestDir: "{app}"; Check: IsX64 and no
 ; VST3
 Source: "..\..\build\bin\arm64\RecRoll.vst3\*"; DestDir: "{commoncf}\VST3\RecRoll.vst3"; Check: IsArm64; Components: vst3; Flags: ignoreversion recursesubdirs createallsubdirs
 ; CLAP
-Source: "..\..\build\bin\arm64\RecRoll.clap"; DestDir: "{commoncf}\CLAP"; Check: IsArm64; Components: clap; Flags: ignoreversion
+Source: "..\..\build\bin\arm64\RecRoll.clap"; DestDir: "{commoncf}\CLAP"; Check: IsArm64; Components: clap; Flags: ignoreversion skipifsourcedoesntexist
 ; Standalone
 Source: "..\..\build\bin\arm64\RecRoll.exe"; DestDir: "{app}"; Check: IsArm64; Components: standalone; Flags: ignoreversion
 

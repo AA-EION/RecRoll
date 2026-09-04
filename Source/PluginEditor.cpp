@@ -135,6 +135,23 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
     statusInfoLabel.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(statusInfoLabel);
 
+    // About button - opens the overlay describing who makes RecRoll and how to
+    // support it. Lives in the bottom bar, where there is slack at every window
+    // size, rather than in the already-crowded header.
+    aboutBtn.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff1e2029));
+    aboutBtn.setColour(juce::TextButton::textColourOffId, juce::Colour(0xffb0b8c4));
+    aboutBtn.setTooltip("About RecRoll - EION Studios, credits, licence and support");
+    aboutBtn.addListener(this);
+    addAndMakeVisible(aboutBtn);
+
+    aboutPanel.onDismiss = [this]
+    {
+        aboutPanel.setVisible(false);
+        grabKeyboardFocus();
+    };
+    aboutPanel.onDonate = [this] { openDonationLink(); };
+    addChildComponent(aboutPanel);
+
     // Uninstall button - ONLY shown on Standalone application, hidden in VST3, CLAP, and AU
     bool isStandalone = (processorRef.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
                      || juce::JUCEApplicationBase::isStandaloneApp();
@@ -165,6 +182,7 @@ RecRollAudioProcessorEditor::RecRollAudioProcessorEditor(RecRollAudioProcessor& 
 RecRollAudioProcessorEditor::~RecRollAudioProcessorEditor()
 {
     donateHeaderBtn.removeListener(this);
+    aboutBtn.removeListener(this);
     donationBanner.donateBtn.removeListener(this);
     donationBanner.dismissBtn.removeListener(this);
     clearBtn.removeListener(this);
@@ -254,6 +272,10 @@ void RecRollAudioProcessorEditor::buttonClicked(juce::Button* button)
         donationBanner.setVisible(false);
         resized();
     }
+    else if (button == &aboutBtn)
+    {
+        aboutPanel.show();
+    }
     else if (button == &uninstallBtn)
     {
         UninstallerHelper::promptAndExecuteUninstall(this);
@@ -326,6 +348,7 @@ void RecRollAudioProcessorEditor::resized()
     auto bottomArea = area.removeFromBottom(48).reduced(12, 8);
     if (uninstallBtn.isVisible())
         uninstallBtn.setBounds(bottomArea.removeFromRight(85).reduced(2, 2));
+    aboutBtn.setBounds(bottomArea.removeFromRight(66).reduced(2, 2));
     statusInfoLabel.setBounds(bottomArea.removeFromRight(170));
 
     dragAudioBtn.setBounds(bottomArea.removeFromRight(190).reduced(6, 2));
@@ -333,6 +356,9 @@ void RecRollAudioProcessorEditor::resized()
 
     // Center Waveform Visualizer
     waveform.setBounds(area.reduced(10, 6));
+
+    // The About overlay covers the whole editor while it is open.
+    aboutPanel.setBounds(getLocalBounds());
 }
 
 } // namespace RecRoll

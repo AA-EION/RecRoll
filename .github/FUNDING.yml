@@ -1,0 +1,4 @@
+# Adds the "Sponsor" button to the RecRoll repository page.
+# Support funds AAX (Pro Tools) support and code-signed, notarised
+# macOS and Windows binaries.
+custom: ["https://www.paypal.com/donate/?business=juanesgtgt2@gmail.com&no_recurring=0&item_name=RecRoll+Plugin+Support&currency_code=USD"]

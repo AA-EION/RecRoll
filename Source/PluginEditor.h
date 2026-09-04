@@ -4,6 +4,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "WaveformComponent.h"
+#include "AboutComponent.h"
 
 namespace RecRoll
 {
@@ -59,7 +60,11 @@ private:
     juce::Label timeSelectionLabel;
     juce::TextButton dragAudioBtn    { "DRAG AUDIO TO DAW" };
     juce::Label statusInfoLabel;
+    juce::TextButton aboutBtn        { "About" };
     juce::TextButton uninstallBtn    { "Uninstall..." };
+
+    // About overlay - hidden until requested, so the working layout is untouched
+    AboutComponent aboutPanel;
 
     // APVTS Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> freezeAttachment;

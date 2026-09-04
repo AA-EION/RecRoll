@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>RecRoll — application mark</title>
+  <desc>The rolling loop: an open ring caught mid-rotation, a record head on the write point, and the captured waveform held in the middle. RecRoll is a product of EION STUDIOS; this mark is the application's own and never replaces the EION symbol.</desc>
+  <defs>
+    <linearGradient id="rrPanel" x1="0" y1="0" x2="0" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#171C27"/>
+      <stop offset="1" stop-color="#080A0F"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="230.4" ry="230.4" fill="url(#rrPanel)"/>
+  <rect x="6.1" y="6.1" width="1011.8" height="1011.8" rx="224.3" ry="224.3"
+        fill="none" stroke="#FFFFFF" stroke-opacity="0.10" stroke-width="7.2"/>
+
+  <!-- the roll -->
+  <path d="M 828.63 639.93 A 341.50 341.50 0 1 1 682.75 216.26"
+        fill="none" stroke="#00E5FF" stroke-width="78.85"/>
+  <path d="M 742.72 260.22 L 718.59 131.51 L 631.31 292.26 Z" fill="#00E5FF"/>
+
+  <!-- record head, sitting on the write point -->
+  <circle cx="828.63" cy="639.93" r="105.1" fill="#FF1744" fill-opacity="0.24"/>
+  <circle cx="828.63" cy="639.93" r="67.81" fill="#FF1744"/>
+
+  <!-- what the buffer is holding -->
+  <g fill="#00E5FF">
+    <rect x="263.05" y="455.18" width="63.50" height="113.64" rx="31.75"/>
+    <rect x="371.61" y="394.57" width="63.50" height="234.86" rx="31.75"/>
+    <rect x="588.73" y="394.57" width="63.50" height="234.86" rx="31.75"/>
+    <rect x="697.29" y="455.18" width="63.50" height="113.64" rx="31.75"/>
+  </g>
+  <rect x="480.17" y="322.60" width="63.50" height="378.80" rx="31.75" fill="#F2F0EB"/>
+</svg>

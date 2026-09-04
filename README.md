@@ -1,11 +1,39 @@
-# RecRoll - Open-Source Rolling Sampler & Retrospective Recorder
+<div align="center">
 
-[![Build and Release RecRoll](https://github.com/recrollaudio/recroll/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/recrollaudio/recroll/actions)
+<img src="Resources/RecRoll_Icon_256.png" alt="RecRoll" width="128" height="128">
+
+# RecRoll
+
+**Rolling sampler &amp; retrospective recorder.**<br>
+Never lose a take you did not know you were recording.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Resources/brand/EION_Lockup_Horizontal_Bone.svg">
+  <img src="Resources/brand/EION_Lockup_Horizontal_Sumi.svg" alt="EION STUDIOS" width="230">
+</picture>
+
+**A product of [EION STUDIOS](https://eionstudios.com) · Engineered by ISSEN Software Group**
+
+[![Build and Release RecRoll](https://github.com/AA-EION/RecRoll/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/AA-EION/RecRoll/actions/workflows/build-and-release.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platforms: Windows & macOS](https://img.shields.io/badge/Platforms-Windows%20%7C%20macOS-brightgreen.svg)]()
 [![Formats: VST3, CLAP, AU, Standalone](https://img.shields.io/badge/Formats-VST3%20%7C%20CLAP%20%7C%20AU%20%7C%20Standalone-orange.svg)]()
 
-**RecRoll** is a high-performance, open-source retrospective audio recording plugin and standalone application inspired by *Bird's Rolling Sampler*. 
+### Support RecRoll
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=juanesgtgt2@gmail.com&no_recurring=0&item_name=RecRoll+Plugin+Support&currency_code=USD)
+
+RecRoll is free and open source. Donations go directly towards **AAX (Pro Tools) support**
+and towards **code-signed and notarised macOS and Windows binaries**, so the installers
+stop tripping Gatekeeper and SmartScreen.
+
+</div>
+
+---
+
+## What it is
+
+**RecRoll** is a high-performance, open-source retrospective audio recording plugin and standalone application inspired by *Bird's Rolling Sampler*.
 
 It constantly records the audio passing through your DAW channel into a circular RAM buffer **without coloring or altering the incoming signal in any way** (100% bit-exact passthrough, zero latency). Whenever inspiration strikes or a happy accident occurs, simply highlight the region and **drag-and-drop it straight into your DAW timeline or desktop** as a pristine 24-bit WAV file.
 
@@ -30,6 +58,8 @@ It constantly records the audio passing through your DAW channel into a circular
 ---
 
 ## Supported Formats
+
+RecRoll appears in your DAW's plugin browser under the manufacturer **EION Studios**.
 
 | Format | Windows (x64 / ARM64) | macOS (Universal 2: Apple Silicon + Intel) |
 |---|---|---|
@@ -64,6 +94,7 @@ Pre-built binaries and installers are automatically built by GitHub Actions on e
      xattr -cr /Library/Audio/Plug-Ins/CLAP/RecRoll.clap
      xattr -cr /Library/Audio/Plug-Ins/Components/RecRoll.component
      ```
+   Proper Developer ID signing and notarisation is what donations pay for — see **[Support](#support-recroll)**.
 
 ---
 
@@ -80,7 +111,7 @@ RecRoll provides a complete GUI self-uninstaller:
    - `/Library/Audio/Plug-Ins/CLAP/RecRoll.clap` & user CLAP
    - `/Library/Audio/Plug-Ins/Components/RecRoll.component` & user AU
    - Application Support, Caches, Preferences, and Saved State
-   - System package receipts (`pkgutil --forget com.recrollaudio.recroll`)
+   - System package receipts (`pkgutil --forget com.eionstudios.recroll`)
    - Resets the `AudioComponentRegistrar` cache.
 5. *Command Line Alternative*: Run `./installer/macos/uninstall.sh` with `sudo`.
 
@@ -95,20 +126,12 @@ RecRoll provides a complete GUI self-uninstaller:
 This repository includes a multi-platform CI/CD workflow located at [`.github/workflows/build-and-release.yml`](.github/workflows/build-and-release.yml).
 
 ### How to Build & Release Automatically:
-1. Push this repository to your GitHub account:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of RecRoll"
-   git remote add origin https://github.com/<your-username>/RecRoll.git
-   git push -u origin main
-   ```
-2. To create an automated GitHub release with all Windows & macOS installers attached:
+1. To create an automated GitHub release with all Windows & macOS installers attached:
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
-3. Or manually trigger the build at any time from the **Actions** tab by selecting **"Build and Release RecRoll"** and clicking **Run workflow**.
+2. Or manually trigger the build at any time from the **Actions** tab by selecting **"Build and Release RecRoll"** and clicking **Run workflow**.
 
 ---
 
@@ -147,6 +170,55 @@ cmake --build build --config Release --parallel
 # Package PKG and DMG
 ./installer/macos/build_installer.sh
 ```
+
+### Regenerating the application artwork
+The RecRoll application mark is generated, not hand-edited. It is the app's own
+identity and is deliberately distinct from the EION STUDIOS symbol:
+
+```bash
+python3 tools/make_icon.py    # requires Pillow
+```
+
+This rewrites `Resources/RecRoll_Icon_*.png` and `Resources/RecRoll_Icon.ico`,
+which CMake feeds to JUCE as `ICON_BIG` / `ICON_SMALL` and to Inno Setup as the
+installer icon.
+
+---
+
+## About
+
+**RecRoll** is a product of **[EION STUDIOS](https://eionstudios.com)** (永音), a music and
+audiovisual production studio.
+
+It is **engineered by ISSEN Software Group**.
+
+| | |
+|---|---|
+| **Publisher** | EION STUDIOS — <https://eionstudios.com> |
+| **Developer** | ISSEN Software Group |
+| **Plugin manufacturer** | EION Studios (as shown in your DAW's plugin browser) |
+| **Bundle identifier** | `com.eionstudios.recroll` |
+| **Licence** | GNU General Public License v3.0 |
+
+The same information is available inside the plugin and the standalone app under the
+**About** button in the bottom bar.
+
+### Brand assets
+`Resources/brand/` holds the EION STUDIOS marks used by this project. They belong to
+EION STUDIOS and follow the 2026.2 *Monocromo* brand standard: two inks, no gradient on
+digital surfaces. `Resources/RecRoll_Icon.*` is RecRoll's own application mark and never
+substitutes for the EION symbol.
+
+---
+
+## Support
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=juanesgtgt2@gmail.com&no_recurring=0&item_name=RecRoll+Plugin+Support&currency_code=USD)
+
+Donations go directly towards:
+
+- **AAX (Pro Tools) support** — the AAX SDK and Avid developer registration required to ship a Pro Tools build.
+- **Code signing and notarisation** — an Apple Developer ID and a Windows code-signing certificate, so the macOS and Windows installers stop tripping Gatekeeper and SmartScreen.
 
 ---
 
